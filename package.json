@@ -1,0 +1,29 @@
+{
+  "name": "fasomsg",
+  "version": "1.0.0",
+  "description": "FasoMsg — Messagerie instantanée souveraine, chiffrée de bout en bout (protocole Matrix Olm/Megolm), destinée aux agents de l'administration publique du Burkina Faso. Hackathon 226 – Édition 2026.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "node scripts/construire.js",
+    "start": "node src/server.js",
+    "seed": "node scripts/seed.js",
+    "test": "node --test tests/",
+    "inspecter": "node scripts/inspecter_db.js",
+    "totp": "node scripts/totp.js"
+  },
+  "dependencies": {
+    "@matrix-org/olm": "^3.2.15",
+    "express": "^5.3.0",
+    "otpauth": "^9.5.2",
+    "qrcode": "^1.5.4",
+    "ws": "^8.22.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
