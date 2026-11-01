@@ -37,6 +37,7 @@ const etat = {
   fichierEnAttente: null, // { nom, mime, taille, octets }
   partage: {},            // sessionId Megolm -> Set(appareil_id déjà servis)
   demandes: {},           // sessionId Megolm -> demande de clé déjà envoyée
+  traitementAppareil: null,
 };
 
 const stockageLocal = {
@@ -318,22 +319,36 @@ function effacerDonneesLocales() {
 }
 
 // ————— To-device : réception et vérification des clés de salon —————
-async function traiterMessagesAppareil() {
+function traiterMessagesAppareil() {
+  if (etat.traitementAppareil) return etat.traitementAppareil;
+  etat.traitementAppareil = traiterFileMessagesAppareil()
+    .finally(() => { etat.traitementAppareil = null; });
+  return etat.traitementAppareil;
+}
+
+async function traiterFileMessagesAppareil() {
   const r = await api.messagesAppareil().catch(() => null);
   if (!r) return;
   const pourMoi = r.messages.filter((m) => m.appareil_id === etat.appareilId);
   const ids = [];
   let clesInstallees = 0;
   for (const m of pourMoi) {
-    ids.push(m.id);
     const clair = etat.gc.dechiffrerDepuisAppareil(m.ciphertext);
-    if (!clair) continue;
-    let enveloppe; try { enveloppe = JSON.parse(clair); } catch { continue; }
-    if (enveloppe.type === 'cle_sal') {
+    if (!clair) {
+      console.warn(`[FasoMsg] Message to-device ${m.id} illisible; conservé dans la file.`);
+      continue;
+    }
+    let enveloppe;
+    try { enveloppe = JSON.parse(clair); } catch {
+      ids.push(m.id);
+      continue;
+    }
+    if (enveloppe.payload?.type === 'cle_sal') {
       if (await verifierEtInstallerCle(enveloppe, m.expediteur_id)) clesInstallees += 1;
-    } else if (enveloppe.type === 'demande_cle') {
+    } else if (enveloppe.payload?.type === 'demande_cle') {
       await repondreDemandeCle(enveloppe, m.expediteur_id);
     }
+    ids.push(m.id);
   }
   if (ids.length) await api.acquitterAppareil(ids).catch(() => {});
   // Des clés sont arrivées : les messages affichés « indéchiffrables » du
@@ -367,7 +382,7 @@ function brancherCompositeur() {
   const classification = $('#classification');
   const expiration = $('#expiration');
   classification?.addEventListener('change', () => {
-    expiration.style.display = classification.value === 'normal' ? 'none' : 'inline-block';
+    expiration?.classList.toggle('masque', classification.value === 'normal');
   });
 
   $('#fichier-a-envoyer')?.addEventListener('change', async (e) => {
@@ -378,7 +393,7 @@ function brancherCompositeur() {
       nom: fichier.name, mime: fichier.type, taille: fichier.size,
       octets: new Uint8Array(await fichier.arrayBuffer()),
     };
-    $('#fichier-attente').style.display = 'flex';
+    $('#fichier-attente').classList.remove('masque');
     $('#nom-fichier-attente').textContent = fichier.name;
   });
 
@@ -423,7 +438,7 @@ async function envoyerMessage() {
         taille: etat.fichierEnAttente.taille, cle: Array.from(cle), iv,
       };
       etat.fichierEnAttente = null;
-      $('#fichier-attente').style.display = 'none';
+      $('#fichier-attente').classList.add('masque');
     }
 
     // 2. Chiffrement Megolm du message complet.
@@ -725,7 +740,7 @@ document.addEventListener('click', async (e) => {
     else if (action === 'nouveau-groupe') modaleNouveauGroupe();
     else if (action === 'nouveau-canal') modaleNouveauCanal();
     else if (action === 'fermer-modale') { if (e.target === cible) fermerModale(); }
-    else if (action === 'annuler-fichier') { etat.fichierEnAttente = null; $('#fichier-attente').style.display = 'none'; }
+    else if (action === 'annuler-fichier') { etat.fichierEnAttente = null; $('#fichier-attente').classList.add('masque'); }
     else if (action === 'telecharger-fichier') telechargerFichier(cible.dataset.id, cible.dataset.cle, cible.dataset.iv, cible.dataset.nom);
     else if (action === 'ecrire-a') {
       const r = await api.creerDirect(cible.dataset.id);

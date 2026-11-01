@@ -74,7 +74,7 @@ class AgentFictif {
     return r.donnees.agent;
   }
 
-  async preparerAppareil() {
+  async preparerAppareil(sansClesJetables = false) {
     const stockage = new Map();
     const cle = await deriverClePickle('cle-test-' + this.identifiant, 'sel-test');
     this.gc = new GestionnaireCrypto(
@@ -88,6 +88,7 @@ class AgentFictif {
     });
     assert.ok(r.statut === 200 || r.statut === 201, `enregistrement appareil de ${this.identifiant}`);
     this.appareilId = r.donnees.appareil_id;
+    if (sansClesJetables) return identite;
     this.gc.genererClesJetables(25);
     const cles = this.gc.clesJetablesAPublier();
     await requete('/api/keys/upload', { method: 'POST', cookie: this.cookie, corps: { appareil_id: this.appareilId, cles } });
@@ -144,7 +145,14 @@ class AgentFictif {
     const { session_id, ciphertext, session_key } =
       this.gc.chiffrerPourSalon(salonId, epoch, JSON.stringify(charge));
 
-    if (session_key) await this.partagerCleSalon(salonId, epoch, session_id, session_key, membres);
+    if (session_key) {
+      await this.partagerCleSalon(salonId, epoch, session_id, session_key, membres);
+    } else {
+      const existante = this.gc.cleSortanteExistante(salonId, epoch);
+      if (existante?.cle) {
+        await this.partagerCleSalon(salonId, epoch, existante.session_id, existante.cle, membres);
+      }
+    }
 
     const r = await requete(`/api/salons/${salonId}/messages`, {
       method: 'POST', cookie: this.cookie,
@@ -164,6 +172,10 @@ class AgentFictif {
       const clair = this.gc.dechiffrerDepuisAppareil(m.ciphertext);
       if (!clair) continue;
       const enveloppe = JSON.parse(clair);
+      if (enveloppe?.payload?.type === 'demande_cle') {
+        await this.repondreDemandeCle(enveloppe, m.expediteur_id);
+        continue;
+      }
       if (enveloppe?.payload?.type !== 'cle_sal') continue;
       const p = enveloppe.payload;
       // Vérification : signature ed25519 + appartenance de la clé à un
@@ -176,6 +188,58 @@ class AgentFictif {
       this.gc.ajouterSessionEntrante(p.session_id, p.session_key);
     }
     if (ids.length) await requete('/api/toDevice/ack', { method: 'POST', cookie: this.cookie, corps: { ids } });
+  }
+
+  async repondreDemandeCle(enveloppe, expediteurId) {
+    const p = enveloppe.payload;
+    if (!this.gc.verifierSignature(p.ed25519_emetteur, JSON.stringify(p), enveloppe.signature)) return;
+    const rq = await requete(`/api/keys/query?appareils=${p.appareil_emetteur}`, { cookie: this.cookie });
+    const attendu = rq.donnees.appareils.find((a) => a.agent_id === expediteurId);
+    if (!attendu || attendu.cle_ed25519 !== p.ed25519_emetteur) return;
+    const cle = this.gc.exporterCleSalon(p.session_id);
+    if (!cle) return;
+    const rDetail = await requete(`/api/salons/${p.salon_id}`, { cookie: this.cookie });
+    if (rDetail.statut !== 200) return;
+    const membre = rDetail.donnees.membres.find((m) => m.id === expediteurId);
+    if (!membre) return;
+    await this.partagerCleSalon(p.salon_id, rDetail.donnees.salon.epoch, p.session_id, cle, [membre]);
+  }
+
+  async demanderCleManquante(salonId, env) {
+    const rDetail = await requete(`/api/salons/${salonId}`, { cookie: this.cookie });
+    assert.equal(rDetail.statut, 200);
+    const membre = rDetail.donnees.membres.find((m) => m.id === env.expediteur_id);
+    assert.ok(membre, 'émetteur membre du salon');
+    const identite = this.gc.identite();
+    const charge = {
+      type: 'demande_cle', salon_id: salonId, session_id: env.session_id,
+      agent_demandeur: this.moi.id, appareil_demandeur: this.appareilId,
+      ed25519_emetteur: identite.ed25519, appareil_emetteur: this.appareilId,
+    };
+    const enveloppe = JSON.stringify({ payload: charge, signature: this.gc.signer(JSON.stringify(charge)) });
+    const destinataires = [];
+    const aReclamer = [];
+    for (const ap of membre.appareils) {
+      if (ap.id === this.appareilId) continue;
+      const ct = this.gc.chiffrerPourAppareil(ap, null, enveloppe);
+      if (ct) destinataires.push({ appareil_id: ap.id, ciphertext: ct });
+      else aReclamer.push({ membre, appareil: ap });
+    }
+    if (aReclamer.length) {
+      const rc = await requete('/api/keys/claim', {
+        method: 'POST', cookie: this.cookie,
+        corps: { cibles: aReclamer.map((c) => ({ appareil_id: c.appareil.id })) },
+      });
+      for (const c of aReclamer) {
+        const cj = rc.donnees.cles[c.appareil.id];
+        if (!cj) continue;
+        const ct = this.gc.chiffrerPourAppareil(c.appareil, cj.cle, enveloppe);
+        if (ct) destinataires.push({ appareil_id: c.appareil.id, ciphertext: ct });
+      }
+    }
+    assert.ok(destinataires.length, 'demande de clé transmise à au moins un appareil');
+    const r = await requete('/api/sendToDevice', { method: 'POST', cookie: this.cookie, corps: { destinataires } });
+    assert.equal(r.statut, 200);
   }
 
   /** Retourne tous les messages déchiffrables d'un salon. */
@@ -223,8 +287,48 @@ test.before(async () => {
   await initOlm();               // bibliothèque Olm chargée pour les tests
 });
 
+test('API : les réponses dynamiques ne sont jamais renvoyées en 304', async () => {
+  const premiere = await fetch(`${BASE}/api/sante`);
+  assert.equal(premiere.status, 200);
+  assert.equal(premiere.headers.get('cache-control'), 'no-store');
+
+  const seconde = await fetch(`${BASE}/api/sante`, {
+    headers: { 'If-None-Match': premiere.headers.get('etag') || '"ancienne-reponse"' },
+  });
+  assert.equal(seconde.status, 200);
+  assert.deepEqual(await seconde.json(), { ok: true, service: 'FasoMsg' });
+});
+
 test.after(() => {
   serveurEnfant?.kill();
+});
+
+test('Olm : plusieurs messages to-device sont déchiffrés sur la même session', async () => {
+  const stockageAlice = new Map();
+  const stockageBob = new Map();
+  const cleAlice = await deriverClePickle('cle-olm-alice', 'sel-olm-alice');
+  const cleBob = await deriverClePickle('cle-olm-bob', 'sel-olm-bob');
+  const alice = new GestionnaireCrypto({
+    getItem: (k) => stockageAlice.get(k) ?? null,
+    setItem: (k, v) => stockageAlice.set(k, v),
+    removeItem: (k) => stockageAlice.delete(k),
+  }, cleAlice);
+  const bob = new GestionnaireCrypto({
+    getItem: (k) => stockageBob.get(k) ?? null,
+    setItem: (k, v) => stockageBob.set(k, v),
+    removeItem: (k) => stockageBob.delete(k),
+  }, cleBob);
+
+  alice.ouvrirCompte();
+  const identiteBob = bob.ouvrirCompte();
+  bob.genererClesJetables(1);
+  const [cleJetable] = bob.clesJetablesAPublier();
+  const appareilBob = { id: 2, cle_curve25519: identiteBob.curve25519 };
+
+  for (const texte of ['cle de salon initiale', 'cle de salon suivante', 'demande de rattrapage']) {
+    const chiffre = alice.chiffrerPourAppareil(appareilBob, cleJetable.cle, texte);
+    assert.equal(bob.dechiffrerDepuisAppareil(chiffre), texte);
+  }
 });
 
 // ===========================================================================

@@ -34,6 +34,16 @@ app.use((req, res, suite) => {
   suite();
 });
 
+// Les réponses API sont propres à la session et souvent volatiles (file
+// to-device, membres, profil). Ne jamais laisser le navigateur réutiliser une
+// réponse 304/cache qui pourrait masquer une clé nouvellement arrivée.
+app.use('/api', (req, res, suite) => {
+  delete req.headers['if-none-match'];
+  delete req.headers['if-modified-since'];
+  res.setHeader('Cache-Control', 'no-store');
+  suite();
+});
+
 // API REST puis interface web (fichiers statiques).
 app.use('/api', api);
 app.use(express.static(path.join(__dirname, '..', 'public')));

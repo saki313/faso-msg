@@ -179,7 +179,7 @@ function compositeurMessage(salon) {
       <option value="restreint">${esc(t('classification_restreint'))}</option>
       <option value="confidentiel">${esc(t('classification_confidentiel'))}</option>
     </select>
-    <select id="expiration" style="display:none" title="${esc(t('expiration'))}">
+    <select id="expiration" class="masque" title="${esc(t('expiration'))}">
       <option value="60">${esc(t('expiration_1h'))}</option>
       <option value="1440">${esc(t('expiration_24h'))}</option>
       <option value="10080">${esc(t('expiration_7j'))}</option>
@@ -190,7 +190,7 @@ function compositeurMessage(salon) {
       <label class="bouton-fichier" title="${esc(t('fichier'))}">+
         <input type="file" id="fichier-a-envoyer" hidden>
       </label>
-      <div class="fichier-attente" id="fichier-attente" style="display:none">
+      <div class="fichier-attente masque" id="fichier-attente">
         <span id="nom-fichier-attente"></span>
         <button type="button" class="mini" data-action="annuler-fichier">×</button>
       </div>

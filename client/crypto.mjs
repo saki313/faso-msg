@@ -191,6 +191,7 @@ export class GestionnaireCrypto {
       try {
         session.unpickle(this.clePickle, this.stockage.getItem(this._cle(`olm:sess:${id}`)));
         const clair = session.decrypt(envelope.type, envelope.body);
+        this.stockage.setItem(this._cle(`olm:sess:${id}`), session.pickle(this.clePickle));
         return clair;
       } catch { /* essaie la session suivante */ }
     }
@@ -200,6 +201,8 @@ export class GestionnaireCrypto {
         const session = new Olm.Session();
         session.create_inbound(this.compte, envelope.body);
         const clair = session.decrypt(envelope.type, envelope.body);
+        this.compte.remove_one_time_keys(session);
+        this.stockage.setItem(this._cle('compte'), this.compte.pickle(this.clePickle));
         const id = session.session_id();
         this.stockage.setItem(this._cle(`olm:sess:${id}`), session.pickle(this.clePickle));
         this.stockage.setItem(this._cle('olm:sessions'), JSON.stringify([...new Set([...ids, id])]));
