@@ -49,7 +49,7 @@ lecture visuels) tout en plaçant la souveraineté au centre :
 
 | Composant | Usage | Licence | Projet |
 |---|---|---|---|
-| Node.js 24 | exécution serveur | MIT | https://nodejs.org |
+| Node.js ≥ 22.13 (24 recommandé) | exécution serveur | MIT | https://nodejs.org |
 | Express 5 | API REST | MIT | https://expressjs.com |
 | ws | WebSocket | MIT | https://github.com/websockets/ws |
 | node:sqlite | base de données | MIT (domaine public pour SQLite) | https://nodejs.org |
@@ -80,7 +80,12 @@ Sans Docker :
 npm install && npm run build && npm start    # Node.js >= 22.13 requis
 npm test                                    # suite e2e (11 tests)
 node scripts/inspecter_db.js "phrase secrète"   # preuve « serveur aveugle »
+node scripts/totp.js admin.dgtd             # code TOTP (fonctionne même sans npm install)
 ```
+
+Sous Node 22, l'avertissement « SQLite is an experimental feature » au
+démarrage est normal et sans effet (module standard, marqué expérimental
+sur cette branche).
 
 ## Comptes de démonstration
 

@@ -9,17 +9,9 @@
 const { db, journaliser } = require('./db');
 const { hacherMotDePasse } = require('./auth');
 
-const MOT_DE_PASSE_DEMO = 'Faso@2026';
-
-const AGENTS_DEMO = [
-  { identifiant: 'admin.dgtd',  nom_complet: 'DIALLO Fatoumata',      ministere: 'MTDPCE – DGTD',                          fonction: 'Administratrice de la messagerie',        role: 'admin',        totp: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP' },
-  { identifiant: 'sawadogo.m',  nom_complet: 'SAWADOGO Mariam',       ministere: 'Ministère de la Santé',                   fonction: 'Directrice des systèmes d\u2019information', role: 'superviseur', totp: 'MFRGGZDFMZTWQ2LKONXW4ZDFMFRGGZDF' },
-  { identifiant: 'ouedraogo.a', nom_complet: 'OUÉDRAOGO Adama',       ministere: 'MTDPCE – DGTD',                          fonction: 'Chargé de projet numérique',              role: 'agent',        totp: 'NBSWY3DPFQQFO33SM5XCA3DFNBSWY3DP' },
-  { identifiant: 'traore.k',    nom_complet: 'TRAORÉ Korotoum',       ministere: 'Ministère de l\u2019Éducation nationale',  fonction: 'Inspectrice pédagogique',                 role: 'agent',        totp: 'ONSWG43FMZSXIZLOORUWG33SNZZGK3DF' },
-  { identifiant: 'zongo.b',     nom_complet: 'ZONGO Boukary',         ministere: 'Ministère de l\u2019Agriculture',          fonction: 'Ingénieur statisticien',                  role: 'agent',        totp: 'OVQXG5CTM5XCA3LUMVQXG5CTM5XCA3LU' },
-  { identifiant: 'compaore.n',  nom_complet: 'COMPAORÉ Nassara',      ministere: 'Ministère de l\u2019Action sociale',       fonction: 'Assistante sociale',                      role: 'agent',        totp: 'NVSQ2ZLBORUGK3TFMVSQ2ZLBORUGK3TF' },
-  { identifiant: 'kabore.f',    nom_complet: 'KABORÉ Fabrice',        ministere: 'Ministère de l\u2019Économie et des Finances', fonction: 'Contrôleur budgétaire',               role: 'agent',        totp: 'NFXGS3TPO5XCA3LUNFXGS3TPO5XCA3LU' },
-];
+// Données des comptes fictifs : module de données pur (aucune dépendance),
+// partagé avec les scripts outils (ex. scripts/totp.js).
+const { AGENTS_DEMO, MOT_DE_PASSE_DEMO } = require('./agents_demo');
 
 function semer() {
   const dejaLa = db.prepare('SELECT COUNT(*) AS n FROM agents').get().n;

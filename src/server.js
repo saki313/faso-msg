@@ -74,6 +74,18 @@ if (process.env.GRAINE_DEMO !== '0') {
   }
 }
 
+// ————— Garde-fou : bundle client construit ? —————
+// public/app.js et public/olm.wasm sont générés par `npm run build` et ne
+// sont pas versionnés (voir .gitignore). Sans eux, la page resterait vide
+// sans explication : on avertit explicitement plutôt que de laisser une
+// page blanche silencieuse. L'API et les tests restent fonctionnels.
+if (!fs.existsSync(path.join(__dirname, '..', 'public', 'app.js'))) {
+  // eslint-disable-next-line no-console
+  console.warn('[FasoMsg] ATTENTION : public/app.js est absent — la page web sera vide.');
+  // eslint-disable-next-line no-console
+  console.warn('[FasoMsg] Lancez :  npm install && npm run build   (ou utilisez Docker : docker compose up).');
+}
+
 serveur.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`FasoMsg démarré sur http://localhost:${PORT} — le serveur ne stocke que du chiffré.`);

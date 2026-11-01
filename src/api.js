@@ -489,10 +489,19 @@ routeur.post('/fichiers', auth.authentifie, (req, res) => {
   if (octets.length === 0 || octets.length > TAILLE_MAX_FICHIER) {
     return res.status(413).json({ erreur: 'fichier_trop_volumineux' });
   }
+  // TTL serveur : même validation que pour les messages (horodatage brut,
+  // borné à 30 jours — minimisation, pas de libellé de classification).
+  let expiration = null;
+  if (expire_le) {
+    const t = Date.parse(expire_le);
+    if (Number.isNaN(t)) return res.status(400).json({ erreur: 'expiration_invalide' });
+    const max = Date.now() + 30 * 24 * 3600e3;
+    expiration = new Date(Math.min(t, max)).toISOString();
+  }
   const id = crypto.randomBytes(12).toString('hex');
   fs.writeFileSync(path.join(DOSSIER_FICHIERS, `${id}.bin`), octets);
   db.prepare('INSERT INTO fichiers (id, salon_id, nom_chiffre, taille, empreinte, expire_le) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(id, Number(salon_id), `${id}.bin`, octets.length, String(empreinte || '').slice(0, 128), expire_le || null);
+    .run(id, Number(salon_id), `${id}.bin`, octets.length, String(empreinte || '').slice(0, 128), expiration);
   res.status(201).json({ id, taille: octets.length });
 });
 
