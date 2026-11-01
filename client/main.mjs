@@ -106,7 +106,7 @@ async function preparerCleLocale(motDePasse) {
 
 function messageErreur(erreur) {
   const table = {
-    identifiants_invalides: 'Identifiants invalides (vérifiez le mot de passe et le code à 6 chiffres).',
+    identifiants_invalides: 'Identifiants invalides (Veuillez vérifier vos identifiants).',
     compte_revoque: 'Ce compte a été révoqué.',
     activation_requise: 'Activez d\u2019abord votre second facteur (TOTP).',
     trop_de_tentatives: 'Trop de tentatives. Réessayez dans 15 minutes.',
