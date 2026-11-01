@@ -1,0 +1,246 @@
+/* ==========================================================================
+   FasoMsg — public/style.css
+   Interface sobre et lisible, aux couleurs du Burkina Faso
+   (vert #009E49, rouge #EF2B2D, jaune #FCD116 en touches d'accent).
+   ========================================================================== */
+
+:root {
+  --vert: #00793f;
+  --vert-clair: #e6f4ee;
+  --rouge: #c62828;
+  --orange: #b26a00;
+  --jaune: #fcd116;
+  --encre: #1c2428;
+  --gris: #5c6b72;
+  --fond: #f4f6f5;
+  --bord: #d9e0dd;
+  --carte: #ffffff;
+  --ombre: 0 1px 3px rgba(28, 36, 40, .12);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: system-ui, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  color: var(--encre);
+  background: var(--fond);
+  font-size: 15px;
+}
+
+button { font: inherit; cursor: pointer; }
+input, select, textarea { font: inherit; color: inherit; }
+
+.principal {
+  background: var(--vert); color: #fff; border: none;
+  border-radius: 8px; padding: 10px 16px; font-weight: 600;
+}
+.principal:hover { filter: brightness(1.08); }
+.danger { background: var(--rouge); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; }
+.discret { background: none; border: none; color: var(--gris); padding: 6px 8px; }
+.discret:hover { color: var(--encre); text-decoration: underline; }
+.mini { border: 1px solid var(--bord); background: var(--carte); border-radius: 6px; padding: 4px 10px; font-size: 13px; }
+.mini.danger { border-color: var(--rouge); background: #fff; color: var(--rouge); }
+.mini.principal { border: none; }
+.complet { width: 100%; margin-bottom: 8px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--bord); background: var(--carte); }
+
+/* ————— Écran de connexion ————— */
+.ecran-connexion {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, #0d3d26 0%, #00793f 55%, #0a5c33 100%);
+  padding: 20px;
+}
+.carte-connexion {
+  background: var(--carte); border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.35);
+  padding: 30px 34px; width: 400px; max-width: 96vw;
+}
+.carte-connexion label { display: block; margin: 12px 0 4px; font-size: 13.5px; color: var(--gris); font-weight: 600; }
+.carte-connexion input {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--bord);
+  border-radius: 8px; margin-top: 4px;
+}
+.marque { font-size: 26px; font-weight: 800; letter-spacing: .5px; }
+.marque .logo {
+  display: inline-grid; place-items: center; width: 34px; height: 34px;
+  background: var(--vert); color: #fff; border-radius: 8px; margin-right: 6px;
+  font-size: 19px;
+}
+.marque.petite { font-size: 19px; }
+.tagline { color: var(--gris); font-size: 13.5px; margin: 8px 0 2px; }
+.salutation { font-weight: 700; color: var(--vert); margin: 10px 0 0; }
+.carte-connexion .principal { width: 100%; margin-top: 18px; }
+.bandeau-info { background: var(--vert-clair); border-radius: 8px; padding: 10px 12px; margin-top: 12px; font-size: 13.5px; }
+.liens-mode { margin-top: 14px; font-size: 13.5px; }
+.liens-mode a { color: var(--vert); }
+.choix-langue { display: flex; gap: 8px; margin-top: 14px; }
+.choix-langue button { flex: 1; border: 1px solid var(--bord); background: #fff; border-radius: 8px; padding: 7px; }
+.note-securite { color: var(--gris); font-size: 12px; margin-top: 16px; }
+.qr { text-align: center; margin: 12px 0; }
+.qr img { width: 180px; height: 180px; border: 1px solid var(--bord); border-radius: 8px; }
+.secret-totp code { word-break: break-all; }
+
+/* ————— Squelette applicatif ————— */
+.barre-haut {
+  height: 54px; background: #0d3d26; color: #fff; display: flex;
+  align-items: center; justify-content: space-between; padding: 0 18px;
+}
+.barre-haut .marque { color: #fff; }
+.barre-droite { display: flex; align-items: center; gap: 10px; }
+.barre-droite .moi em { font-style: normal; font-size: 12px; opacity: .8; margin-left: 4px; }
+.barre-droite .discret { color: #cfe4d8; }
+.bouton-langue { background: rgba(255,255,255,.12); color: #fff; border: none; border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+
+.corps { display: flex; height: calc(100vh - 54px); }
+.barre-laterale {
+  width: 300px; min-width: 230px; background: #fff; border-right: 1px solid var(--bord);
+  display: flex; flex-direction: column; padding: 12px; gap: 10px; overflow-y: auto;
+}
+.actions-laterales { display: flex; flex-direction: column; }
+.recherche {
+  padding: 9px 12px; border: 1px solid var(--bord); border-radius: 8px; background: var(--fond);
+}
+.recherche.grande { width: 100%; margin-bottom: 12px; }
+.liste-salons { list-style: none; margin: 0; padding: 0; flex: 1; }
+.liste-salons li { margin: 2px 0; }
+.salon {
+  display: flex; align-items: center; gap: 9px; padding: 10px 10px;
+  border-radius: 8px; color: var(--encre); text-decoration: none;
+}
+.salon:hover { background: var(--fond); }
+.salon.actif { background: var(--vert-clair); }
+.icone-salon { color: var(--vert); font-weight: 700; font-size: 12px; width: 18px; }
+.nom-salon { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge {
+  background: var(--vert); color: #fff; font-size: 11px; border-radius: 99px;
+  padding: 2px 7px; font-weight: 700;
+}
+.vide { color: var(--gris); padding: 12px; font-size: 13.5px; }
+
+.panneau { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* ————— Salon (conversation) ————— */
+.entete-salon {
+  display: flex; justify-content: space-between; align-items: center; gap: 14px;
+  padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--bord); flex-wrap: wrap;
+}
+.entete-salon h2 { margin: 0; font-size: 17px; }
+.type-salon { color: var(--gris); font-size: 12.5px; }
+.membres summary { cursor: pointer; color: var(--gris); font-size: 13.5px; }
+.membres ul { list-style: none; padding: 6px 0 0; margin: 0; max-height: 180px; overflow-y: auto; }
+.membres li { padding: 3px 0; font-size: 13.5px; }
+.ajout-membre { display: flex; gap: 6px; margin-top: 6px; }
+.ajout-membre input { flex: 1; border: 1px solid var(--bord); border-radius: 6px; padding: 6px 8px; }
+
+.fil-messages { flex: 1; overflow-y: auto; padding: 18px 20px; background: var(--fond); }
+.fil-vide { color: var(--gris); text-align: center; margin-top: 40px; }
+
+.bulle {
+  background: #fff; border-radius: 12px; padding: 8px 12px 10px; margin-bottom: 10px;
+  max-width: min(560px, 82%); box-shadow: var(--ombre); position: relative; overflow: hidden;
+}
+.bulle.moi { margin-left: auto; background: var(--vert-clair); border: 1px solid #bfe0d0; }
+.entete-bulle { font-size: 12px; color: var(--gris); margin-bottom: 2px; }
+.heure { float: right; }
+.texte { line-height: 1.45; word-wrap: break-word; white-space: pre-wrap; }
+.bulle.systeme { background: #eef1ef; color: var(--gris); font-size: 13px; text-align: center; max-width: 100%; }
+
+.badge-classif { display: inline-block; font-size: 11.5px; font-weight: 700; border-radius: 6px; padding: 2px 8px; margin: 2px 0 6px; }
+.badge-classif.restreint { background: #fdeedd; color: var(--orange); }
+.badge-classif.confidentiel { background: #fdeaea; color: var(--rouge); }
+.bulle.cl-restreint { border-left: 3px solid var(--orange); }
+.bulle.cl-confidentiel { border-left: 3px solid var(--rouge); }
+
+.sans-copie { user-select: none; -webkit-user-select: none; }
+
+/* Filigrane : nom du lecteur répété (diffusion restreinte / confidentiel) */
+.filigrane { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.filigrane span {
+  position: absolute; white-space: nowrap; font-size: 11px; font-weight: 600;
+  color: rgba(28,36,40,.14); transform: rotate(-18deg);
+}
+.filigrane .f1 { top: 6%; left: 4%; }
+.filigrane .f2 { top: 22%; left: 38%; }
+.filigrane .f3 { top: 38%; left: 10%; }
+.filigrane .f4 { top: 54%; left: 46%; }
+.filigrane .f5 { top: 70%; left: 16%; }
+.filigrane .f6 { top: 86%; left: 42%; }
+.filigrane .f7 { top: 14%; left: 68%; }
+.filigrane .f8 { top: 46%; left: 72%; }
+.filigrane .f9 { top: 78%; left: 66%; }
+
+.carte-fichier {
+  display: flex; align-items: center; gap: 10px; background: var(--fond);
+  border-radius: 8px; padding: 8px 10px; margin: 4px 0;
+}
+.nom-fichier { font-weight: 600; }
+.meta-fichier { color: var(--gris); font-size: 12.5px; }
+.info-expiration { display: block; font-size: 11.5px; color: var(--gris); margin-top: 4px; }
+
+/* ————— Compositeur ————— */
+.compositeur {
+  display: flex; gap: 8px; padding: 12px 16px; background: #fff;
+  border-top: 1px solid var(--bord); align-items: flex-end; flex-wrap: wrap;
+}
+.compositeur textarea {
+  flex: 1; min-width: 160px; resize: none; border: 1px solid var(--bord);
+  border-radius: 10px; padding: 10px 12px; max-height: 130px;
+}
+.compositeur select { border: 1px solid var(--bord); border-radius: 8px; padding: 8px; background: #fff; }
+.bouton-fichier {
+  border: 1px solid var(--bord); border-radius: 10px; width: 40px; height: 40px;
+  display: grid; place-items: center; font-size: 20px; color: var(--vert); cursor: pointer;
+}
+.fichier-attente {
+  display: flex; align-items: center; gap: 8px; background: var(--vert-clair);
+  border-radius: 8px; padding: 6px 10px; font-size: 13px;
+}
+.lecture-seule { padding: 14px 18px; background: #fdf6e3; color: #7a5c00; font-size: 13.5px; }
+
+/* ————— Annuaire ————— */
+.zone-annuaire { flex: 1; overflow-y: auto; padding: 16px 22px; }
+.bloc-ministere h3 {
+  font-size: 14px; color: var(--vert); border-bottom: 2px solid var(--vert-clair);
+  padding-bottom: 6px; margin: 18px 0 8px;
+}
+.bloc-ministere ul { list-style: none; padding: 0; margin: 0; }
+.bloc-ministere li {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  background: #fff; border-radius: 10px; padding: 10px 14px; margin-bottom: 6px; box-shadow: var(--ombre);
+}
+.meta { color: var(--gris); font-size: 12.5px; }
+
+/* ————— Administration / tableaux ————— */
+.zone-admin { flex: 1; overflow-y: auto; padding: 16px 22px; }
+.onglets { display: flex; gap: 8px; padding: 12px 22px 0; }
+.onglets button { border: 1px solid var(--bord); background: #fff; border-radius: 8px 8px 0 0; padding: 8px 16px; }
+.onglets button.actif { background: var(--vert); color: #fff; border-color: var(--vert); }
+.tableau { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: var(--ombre); font-size: 13.5px; }
+.tableau th { text-align: left; background: var(--vert-clair); padding: 9px 10px; color: #0a5c33; }
+.tableau td { padding: 8px 10px; border-top: 1px solid var(--bord); }
+.tableau tr.revoque td { color: var(--gris); text-decoration: line-through; }
+.forme-enrolement { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; background: #fff; padding: 14px; border-radius: 10px; margin-bottom: 16px; box-shadow: var(--ombre); }
+.forme-enrolement label { font-size: 12.5px; color: var(--gris); font-weight: 600; display: block; }
+.forme-enrolement input, .forme-enrolement select { width: 100%; margin-top: 4px; padding: 8px 10px; border: 1px solid var(--bord); border-radius: 8px; }
+.bandeau-code { background: var(--vert-clair); border: 1px dashed var(--vert); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+.bandeau-code code { font-size: 22px; font-weight: 800; letter-spacing: 2px; color: var(--vert); }
+
+/* ————— Profil ————— */
+.zone-profil { flex: 1; overflow-y: auto; padding: 16px 22px; }
+.empreinte { font-family: ui-monospace, monospace; background: #fff; padding: 12px 14px; border-radius: 10px; letter-spacing: 1px; box-shadow: var(--ombre); }
+.liste-appareils { font-size: 13.5px; color: var(--gris); }
+
+/* ————— Modale ————— */
+.voile { position: fixed; inset: 0; background: rgba(13,25,18,.55); display: grid; place-items: center; z-index: 50; }
+.modale { background: #fff; border-radius: 14px; padding: 22px 24px; width: 480px; max-width: 94vw; max-height: 84vh; overflow-y: auto; }
+.modale h3 { margin-top: 0; }
+.modale label { display: block; margin: 10px 0 4px; font-size: 13.5px; color: var(--gris); font-weight: 600; }
+.modale input:not([type=checkbox]):not([type=radio]) { width: 100%; padding: 9px 11px; border: 1px solid var(--bord); border-radius: 8px; }
+.liste-choix { max-height: 260px; overflow-y: auto; border: 1px solid var(--bord); border-radius: 8px; padding: 8px; margin: 10px 0; }
+.choix { display: flex; align-items: center; gap: 8px; padding: 4px 2px; font-weight: 400 !important; }
+
+/* ————— Responsive ————— */
+@media (max-width: 760px) {
+  .corps { flex-direction: column; }
+  .barre-laterale { width: 100%; max-height: 42vh; border-right: none; border-bottom: 1px solid var(--bord); }
+  .bulle { max-width: 94%; }
+}
