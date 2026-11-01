@@ -468,3 +468,29 @@ test('Expiration : le serveur supprime le message arrivé à échéance', async 
   const restants = rListe.donnees.messages.filter((m) => m.expire_le === expireLe);
   assert.equal(restants.length, 0, 'le message expiré doit être supprimé côté serveur');
 });
+
+test('Rattrapage des clés : un appareil en retard déchiffre l\'historique après demande', async () => {
+  const alice = new AgentFictif('zongo.b', AGENTS_DEMO.find((a) => a.identifiant === 'zongo.b').totp);
+  alice.moi = await alice.connecter();
+  await alice.preparerAppareil();
+  const bob = new AgentFictif('kabore.f', AGENTS_DEMO.find((a) => a.identifiant === 'kabore.f').totp);
+  bob.moi = await bob.connecter();
+  await bob.preparerAppareil(true);        // appareil déclaré, SANS clés jetables
+  const rDirect = await requete('/api/direct', { method: 'POST', cookie: alice.cookie, corps: { avec: 'kabore.f' } });
+  const salon = rDirect.donnees.salon_id;
+  const idMsg = await alice.envoyerMessage(salon, 'rattrapage-salut-7f3a');
+  await bob.synchroniser();
+  const bloque = (await bob.lireMessages(salon)).find((m) => m.env.id === idMsg);
+  assert.ok(bloque && bloque.clair === null, 'sans rattrapage : « clé de salon non reçue »');
+  bob.gc.genererClesJetables(10);          // Bob finit son initialisation
+  await requete('/api/keys/upload', { method: 'POST', cookie: bob.cookie, corps: { appareil_id: bob.appareilId, cles: bob.gc.clesJetablesAPublier() } });
+  await bob.demanderCleManquante(salon, bloque.env);   // demande_cle
+  await alice.synchroniser();               // Alice répond (clé exportée index 0)
+  await bob.synchroniser();
+  assert.ok((await bob.lireMessages(salon)).some((m) => m.clair?.texte === 'rattrapage-salut-7f3a'),
+    'le message envoyé AVANT le rattrapage est déchiffré');
+  await alice.envoyerMessage(salon, 'rattrapage-cc-9d2b');
+  await bob.synchroniser();
+  assert.ok((await bob.lireMessages(salon)).some((m) => m.clair?.texte === 'rattrapage-cc-9d2b'),
+    'les messages suivants arrivent avec leur clé');
+});

@@ -45,7 +45,7 @@ else { this.compte.create(); this.stockage.setItem(...) }
   crée la session entrante avec `create_inbound(compte, body)`.
 - `create_inbound` vérifie cryptographiquement que le message a été chiffré
   **pour notre clé jetable réservée** — personne d'autre ne peut s'y insérer.
-
+s
 ### `ajouterSessionEntrante(sessionId, sessionKey)` + vérification amont
 - Vérifie que `session.session_id()` correspond à l'id annoncé (cohérence),
   puis stocke la session entrante picklée.
@@ -64,6 +64,16 @@ Côté destinataire (`verifierEtInstallerCle`) — **double vérification** :
    intermédiaire (attaque man-in-the-middle détectée) ;
 2. la clé ed25519 annoncée existe réellement dans l'annuaire serveur comme
    appareil de l'émetteur → pas d'usurpation d'identité.
+
+**Rattrapage des clés (appareil en retard)** : la clé est partagée à la
+CRÉATION de la session, puis re-partagée à chaque envoi et à l'ouverture du
+salon aux appareils pas encore couverts (`exporterCleSalon` : clé exportée
+à l'index 0 → le destinataire déchiffre toute l'historique, via
+`import_session`). Si un message reste indéchiffrable, le client envoie une
+`demande_cle` Olm-signée à l'émetteur (type `m.room_key_request` de Matrix) ;
+l'émetteur répond par un partage classique après vérification signature +
+annuaire + appartenance au salon. Un agent révoqué, retiré des salons, ne
+peut ni demander ni recevoir de clé.
 
 ## 3. src/auth.js — authentification forte
 

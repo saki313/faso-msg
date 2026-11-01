@@ -35,6 +35,8 @@ const etat = {
   ws: null,
   ongletAdmin: 'agents',
   fichierEnAttente: null, // { nom, mime, taille, octets }
+  partage: {},            // sessionId Megolm -> Set(appareil_id déjà servis)
+  demandes: {},           // sessionId Megolm -> demande de clé déjà envoyée
 };
 
 const stockageLocal = {
@@ -200,8 +202,11 @@ async function ouvrirSalon(id) {
   } catch (e) { return alert(messageErreur(e)); }
 
   await traiterMessagesAppareil();          // récupérer les clés de salon en attente
+  await repartagerCleActive(id, etat.detail.salon.epoch);   // rattrapage des appareils en retard
   etat.messages[id] = [];
-  const { messages } = await api.historique(id, etat.vus[id] || 0);
+  // Historique complet à chaque ouverture : les messages restés en échec
+  // (clé reçue entre-temps) sont ainsi retentés et tout le fil réapparaît.
+  const { messages } = await api.historique(id, 0);
   for (const env of messages) ajouterMessageRendu(id, env);
   etat.badges[id] = 0;
   rendreBarreLaterale();
@@ -235,6 +240,7 @@ async function ajouterMessageRendu(salonId, env) {
   if (!r) {
     etat.messages[salonId].push({ echec: true, env });
     etat.vus[salonId] = env.id;
+    demanderCleManquante(env);              // rattrapage : demande la clé à l'émetteur
     return;
   }
   let contenu;
@@ -250,6 +256,7 @@ function connecterWebSocket() {
   const protocole = location.protocol === 'https:' ? 'wss' : 'ws';
   const ws = new WebSocket(`${protocole}://${location.host}/ws`);
   etat.ws = ws;
+  ws.onopen = () => { traiterMessagesAppareil().catch(() => {}); };   // clés reçues hors ligne
   ws.onmessage = (e) => {
     let msg; try { msg = JSON.parse(e.data); } catch { return; }
     if (msg.t === 'message') recevoirMessage(msg);
@@ -316,15 +323,22 @@ async function traiterMessagesAppareil() {
   if (!r) return;
   const pourMoi = r.messages.filter((m) => m.appareil_id === etat.appareilId);
   const ids = [];
+  let clesInstallees = 0;
   for (const m of pourMoi) {
     ids.push(m.id);
     const clair = etat.gc.dechiffrerDepuisAppareil(m.ciphertext);
     if (!clair) continue;
     let enveloppe; try { enveloppe = JSON.parse(clair); } catch { continue; }
-    if (enveloppe.type !== 'cle_sal') continue;
-    await verifierEtInstallerCle(enveloppe, m.expediteur_id);
+    if (enveloppe.type === 'cle_sal') {
+      if (await verifierEtInstallerCle(enveloppe, m.expediteur_id)) clesInstallees += 1;
+    } else if (enveloppe.type === 'demande_cle') {
+      await repondreDemandeCle(enveloppe, m.expediteur_id);
+    }
   }
   if (ids.length) await api.acquitterAppareil(ids).catch(() => {});
+  // Des clés sont arrivées : les messages affichés « indéchiffrables » du
+  // salon actif sont retentés immédiatement (sans rouvrir le salon).
+  if (clesInstallees) retenterMessagesEchoues();
 }
 
 async function verifierEtInstallerCle(enveloppe, expediteurId) {
@@ -341,7 +355,7 @@ async function verifierEtInstallerCle(enveloppe, expediteurId) {
     if (!attendu || attendu.cle_ed25519 !== p.ed25519_emetteur) return;
   } catch { return; }
   // 3) Installation de la session entrante Megolm.
-  etat.gc.ajouterSessionEntrante(p.session_id, p.session_key);
+  return etat.gc.ajouterSessionEntrante(p.session_id, p.session_key);
 }
 
 // ————— Envoi d'un message —————
@@ -420,9 +434,11 @@ async function envoyerMessage() {
     const { session_id, ciphertext, session_key } =
       etat.gc.chiffrerPourSalon(salonId, epoch, JSON.stringify(contenu));
 
-    // 3. Nouvelle session (création ou rotation) : partager la clé de salon
-    //    aux autres appareils via Olm, AVANT d'envoyer le message.
-    if (session_key) await partagerCleSalon(session_id, session_key, epoch);
+    // 3. Partage de la clé de salon via Olm, AVANT d'envoyer le message : à
+    //    la création de la session, puis à CHAQUE envoi pour les appareils
+    //    pas encore couverts (connectés depuis, partage manqué…).
+    const cleAPartager = session_key || etat.gc.exporterCleSalon(session_id);
+    if (cleAPartager) await partagerCleSalon(session_id, cleAPartager, epoch);
 
     // 4. Envoi de l'enveloppe chiffrée au serveur (relais aveugle).
     const r = await api.envoyerMessage(salonId, session_id, ciphertext, expire_le);
@@ -436,28 +452,9 @@ async function envoyerMessage() {
   }
 }
 
-/** Partage la clé Megolm d'un salon à tous les appareils des membres. */
-async function partagerCleSalon(sessionId, sessionKey, epoch) {
-  const identite = etat.gc.identite();
-  const payload = {
-    type: 'cle_sal', salon_id: etat.salonActifId, epoch, session_id: sessionId,
-    session_key: sessionKey, ed25519_emetteur: identite.ed25519,
-    appareil_emetteur: etat.appareilId, agent_emetteur: etat.agent.id,
-  };
-  const aSigner = JSON.stringify(payload);
-  const signature = etat.gc.signer(aSigner);
-  const enveloppe = JSON.stringify({ payload, signature });
-
-  // Tous les appareils des membres, y compris MES autres appareils,
-  // sauf l'appareil courant (il installe sa clé localement).
-  const cibles = [];
-  for (const m of etat.detail.membres) {
-    for (const ap of m.appareils) {
-      if (ap.id === etat.appareilId) continue;
-      cibles.push({ membre: m, appareil: ap });
-    }
-  }
-
+/** Chiffre une enveloppe Olm pour des appareils cibles (session existante ou
+ *  clé jetable réclamée) et l'expédie. Retourne les identifiants servis. */
+async function envoyerEnveloppeOlm(cibles, enveloppe) {
   const destinataires = [];
   const aReclamer = [];
   for (const c of cibles) {
@@ -466,7 +463,7 @@ async function partagerCleSalon(sessionId, sessionKey, epoch) {
     else aReclamer.push(c);
   }
   if (aReclamer.length) {
-    const { cles } = await api.reclamerCles(aReclamer.map((c) => ({ agent_id: c.membre.id, appareil_id: c.appareil.id })));
+    const { cles } = await api.reclamerCles(aReclamer.map((c) => ({ appareil_id: c.appareil.id })));
     for (const c of aReclamer) {
       const cj = cles[c.appareil.id];
       if (!cj) continue;                       // appareil hors ligne sans clé : il rattrapera
@@ -476,6 +473,120 @@ async function partagerCleSalon(sessionId, sessionKey, epoch) {
   }
   if (destinataires.length) await api.envoyerAuxAppareils(destinataires);
   await completerClesJetables(Math.min(5, cibles.length));   // reconstitution du stock
+  return destinataires.map((d) => d.appareil_id);
+}
+
+/**
+ * Partage la clé Megolm d'un salon (clé exportée à l'index 0 : le
+ * destinataire déchiffrera TOUTE l'historique de la session). Par défaut, aux
+ * appareils des membres pas encore couverts pour cette session ; ou aux
+ * `cibles` explicites (réponse à une demande de clé).
+ */
+async function partagerCleSalon(sessionId, sessionKey, epoch, cibles = null, salonId = null) {
+  const couverts = (etat.partage[sessionId] ||= new Set([etat.appareilId]));
+  if (!cibles) {
+    cibles = [];
+    for (const m of etat.detail.membres) {
+      for (const ap of m.appareils) {
+        if (ap.id !== etat.appareilId && !couverts.has(ap.id)) cibles.push({ membre: m, appareil: ap });
+      }
+    }
+  }
+  if (!cibles.length) return;
+  const identite = etat.gc.identite();
+  const payload = {
+    type: 'cle_sal', salon_id: salonId || etat.salonActifId, epoch, session_id: sessionId,
+    session_key: sessionKey, ed25519_emetteur: identite.ed25519,
+    appareil_emetteur: etat.appareilId, agent_emetteur: etat.agent.id,
+  };
+  const enveloppe = JSON.stringify({ payload, signature: etat.gc.signer(JSON.stringify(payload)) });
+  const servis = await envoyerEnveloppeOlm(cibles, enveloppe);
+  for (const id of servis) couverts.add(id);
+}
+
+/** À l'ouverture d'un salon : re-partage la clé de la session sortante en
+ *  cours (si elle existe) aux appareils qui l'ont manquée (hors ligne à la
+ *  création, arrivés après, partage initialement échoué). */
+async function repartagerCleActive(salonId, epoch) {
+  try {
+    const c = etat.gc.cleSortanteExistante(salonId, epoch);
+    if (c && c.cle) await partagerCleSalon(c.session_id, c.cle, epoch);
+  } catch { /* le rattrapage se retentera à la prochaine ouverture */ }
+}
+
+/**
+ * Clé manquante : demande la session à l'appareil émetteur du message
+ * (mécanisme type « m.room_key_request » du protocole Matrix, transporté Olm
+ * comme les clés de salon). La file to-device du serveur conserve la demande
+ * même si l'émetteur est hors ligne ; il y répondra à son retour.
+ */
+async function demanderCleManquante(env) {
+  try {
+    if (!env?.session_id || etat.demandes[env.session_id]) return;   // déjà demandée
+    etat.demandes[env.session_id] = true;
+    if (!etat.detail) return;
+    const membre = etat.detail.membres.find((m) => m.id === env.expediteur_id);
+    if (!membre) return;                    // émetteur parti du salon : pas de demande
+    const identite = etat.gc.identite();
+    const payload = {
+      type: 'demande_cle', salon_id: etat.salonActifId, session_id: env.session_id,
+      agent_demandeur: etat.agent.id, appareil_demandeur: etat.appareilId,
+      ed25519_emetteur: identite.ed25519, appareil_emetteur: etat.appareilId,
+    };
+    const enveloppe = JSON.stringify({ payload, signature: etat.gc.signer(JSON.stringify(payload)) });
+    const cibles = membre.appareils
+      .filter((ap) => ap.id !== etat.appareilId)
+      .map((ap) => ({ membre, appareil: ap }));
+    if (cibles.length) await envoyerEnveloppeOlm(cibles, enveloppe);
+  } catch { /* le rattrapage se retentera à la prochaine ouverture/erreur */ }
+}
+
+/** Répond à une demande de clé : re-partage la session demandée (si nous la
+ *  détenons) à tous les appareils du demandeur, après vérifications. */
+async function repondreDemandeCle(enveloppe, expediteurId) {
+  try {
+    const p = enveloppe.payload;
+    if (!p || !enveloppe.signature) return;
+    // 1) Signature ed25519 du demandeur…
+    if (!etat.gc.verifierSignature(p.ed25519_emetteur, JSON.stringify(p), enveloppe.signature)) return;
+    // 2) … rattachée à un appareil déclaré de l'agent demandeur.
+    try {
+      const { appareils } = await api.clesPubliques([p.appareil_emetteur]);
+      const attendu = appareils.find((a) => a.agent_id === expediteurId);
+      if (!attendu || attendu.cle_ed25519 !== p.ed25519_emetteur) return;
+    } catch { return; }
+    // 3) Nous devons détenir la session demandée…
+    const cle = etat.gc.exporterCleSalon(p.session_id);
+    if (!cle) return;
+    // 4) … et le demandeur doit être membre du salon concerné.
+    const d = await api.salon(p.salon_id).catch(() => null);
+    if (!d) return;
+    const membre = d.membres.find((m) => m.id === expediteurId);
+    if (!membre) return;
+    const cibles = membre.appareils
+      .filter((ap) => ap.id !== etat.appareilId)
+      .map((ap) => ({ membre, appareil: ap }));
+    await partagerCleSalon(p.session_id, cle, d.salon.epoch, cibles, p.salon_id);
+  } catch { /* non bloquant */ }
+}
+
+/** Des clés viennent d'arriver : retente le déchiffrement des messages en
+ *  échec du salon actif et rafraîchit l'affichage. */
+function retenterMessagesEchoues() {
+  const salonId = etat.salonActifId;
+  if (!salonId || !etat.messages[salonId]) return;
+  let change = false;
+  etat.messages[salonId] = etat.messages[salonId].map((entree) => {
+    if (!entree.echec) return entree;
+    const r = etat.gc.dechiffrerSalon(entree.env.session_id, entree.env.ciphertext);
+    if (!r) return entree;
+    change = true;
+    let contenu; try { contenu = JSON.parse(r.plaintext); } catch { contenu = { type: 'texte', texte: '' }; }
+    const expediteur = etat.detail?.membres.find((m) => m.id === entree.env.expediteur_id)
+      || { nom_complet: '—' };
+    return { env: entree.env, contenu, expediteur };
+  });
+  if (change) { rendreSalon(); defilerFil(); }
 }
 
 function octetsVersBase64(octets) {

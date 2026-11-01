@@ -1,0 +1,1003 @@
+From fcc7b8dfd87294cf493de1d15f4789f94d0df60a Mon Sep 17 00:00:00 2001
+From: Equipe FasoMsg <equipe@fasomsg.example>
+Date: Sun, 1 Nov 2026 19:09:54 +0000
+Subject: [PATCH 1/3] =?UTF-8?q?fix:=20robustesse=20du=20d=C3=A9p=C3=B4t=20?=
+ =?UTF-8?q?sur=20machine=20vierge=20=E2=80=94=20totp.js=20sans=20npm=20ins?=
+ =?UTF-8?q?tall=20(RFC=206238,=20node:crypto),=20garde-fou=20bundle=20clie?=
+ =?UTF-8?q?nt=20absent,=20npm=20run=20seed=20op=C3=A9rationnel,=20TTL=20fi?=
+ =?UTF-8?q?chiers=20valid=C3=A9,=20README=20Node=20>=3D=2022.13?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .dockerignore                       |   0
+ .gitignore                          |   0
+ COMPTE_DEMO.md                      |   0
+ Dockerfile                          |   0
+ LICENSE                             |   0
+ README.md                           |   7 +++-
+ client/api.mjs                      |   0
+ client/crypto.mjs                   |   0
+ client/i18n.mjs                     |   0
+ client/main.mjs                     |   0
+ client/ui.mjs                       |   0
+ docker-compose.yml                  |   0
+ docs/EXPLICATION_CODE.md            |   0
+ docs/GUIDE_ENTRETIEN.md             |   0
+ docs/NOTE_PREPROJET.md              |   0
+ docs/NOTE_SECURITE.md               |   0
+ docs/Note_de_pre-projet_FasoMsg.pdf | Bin
+ docs/Note_de_securite_FasoMsg.pdf   | Bin
+ docs/VIDEO_STORYBOARD.md            |   0
+ package-lock.json                   |   0
+ package.json                        |   0
+ public/index.html                   |   0
+ public/style.css                    |   0
+ scripts/construire.js               |   0
+ scripts/inspecter_db.js             |   0
+ scripts/seed.js                     |   7 +++-
+ scripts/totp.js                     |  58 ++++++++++++++++++++++------
+ src/agents_demo.js                  |  25 ++++++++++++
+ src/api.js                          |  11 +++++-
+ src/auth.js                         |   0
+ src/db.js                           |   0
+ src/seed.js                         |  14 ++-----
+ src/server.js                       |  12 ++++++
+ src/ws.js                           |   0
+ tests/e2e.test.mjs                  |   0
+ 35 files changed, 108 insertions(+), 26 deletions(-)
+ mode change 100644 => 100755 .dockerignore
+ mode change 100644 => 100755 .gitignore
+ mode change 100644 => 100755 COMPTE_DEMO.md
+ mode change 100644 => 100755 Dockerfile
+ mode change 100644 => 100755 LICENSE
+ mode change 100644 => 100755 README.md
+ mode change 100644 => 100755 client/api.mjs
+ mode change 100644 => 100755 client/crypto.mjs
+ mode change 100644 => 100755 client/i18n.mjs
+ mode change 100644 => 100755 client/main.mjs
+ mode change 100644 => 100755 client/ui.mjs
+ mode change 100644 => 100755 docker-compose.yml
+ mode change 100644 => 100755 docs/EXPLICATION_CODE.md
+ mode change 100644 => 100755 docs/GUIDE_ENTRETIEN.md
+ mode change 100644 => 100755 docs/NOTE_PREPROJET.md
+ mode change 100644 => 100755 docs/NOTE_SECURITE.md
+ mode change 100644 => 100755 docs/Note_de_pre-projet_FasoMsg.pdf
+ mode change 100644 => 100755 docs/Note_de_securite_FasoMsg.pdf
+ mode change 100644 => 100755 docs/VIDEO_STORYBOARD.md
+ mode change 100644 => 100755 package-lock.json
+ mode change 100644 => 100755 package.json
+ mode change 100644 => 100755 public/index.html
+ mode change 100644 => 100755 public/style.css
+ mode change 100644 => 100755 scripts/construire.js
+ mode change 100644 => 100755 scripts/inspecter_db.js
+ mode change 100644 => 100755 scripts/seed.js
+ mode change 100644 => 100755 scripts/totp.js
+ create mode 100644 src/agents_demo.js
+ mode change 100644 => 100755 src/api.js
+ mode change 100644 => 100755 src/auth.js
+ mode change 100644 => 100755 src/db.js
+ mode change 100644 => 100755 src/seed.js
+ mode change 100644 => 100755 src/server.js
+ mode change 100644 => 100755 src/ws.js
+ mode change 100644 => 100755 tests/e2e.test.mjs
+
+diff --git a/.dockerignore b/.dockerignore
+old mode 100644
+new mode 100755
+diff --git a/.gitignore b/.gitignore
+old mode 100644
+new mode 100755
+diff --git a/COMPTE_DEMO.md b/COMPTE_DEMO.md
+old mode 100644
+new mode 100755
+diff --git a/Dockerfile b/Dockerfile
+old mode 100644
+new mode 100755
+diff --git a/LICENSE b/LICENSE
+old mode 100644
+new mode 100755
+diff --git a/README.md b/README.md
+old mode 100644
+new mode 100755
+index e0fecfd..da753fd
+--- a/README.md
++++ b/README.md
+@@ -49,7 +49,7 @@ lecture visuels) tout en plaçant la souveraineté au centre :
+ 
+ | Composant | Usage | Licence | Projet |
+ |---|---|---|---|
+-| Node.js 24 | exécution serveur | MIT | https://nodejs.org |
++| Node.js ≥ 22.13 (24 recommandé) | exécution serveur | MIT | https://nodejs.org |
+ | Express 5 | API REST | MIT | https://expressjs.com |
+ | ws | WebSocket | MIT | https://github.com/websockets/ws |
+ | node:sqlite | base de données | MIT (domaine public pour SQLite) | https://nodejs.org |
+@@ -80,8 +80,13 @@ Sans Docker :
+ npm install && npm run build && npm start    # Node.js >= 22.13 requis
+ npm test                                    # suite e2e (10 tests)
+ node scripts/inspecter_db.js "phrase secrète"   # preuve « serveur aveugle »
++node scripts/totp.js admin.dgtd             # code TOTP (fonctionne même sans npm install)
+ ```
+ 
++Sous Node 22, l'avertissement « SQLite is an experimental feature » au
++démarrage est normal et sans effet (module standard, marqué expérimental
++sur cette branche).
++
+ ## Comptes de démonstration
+ 
+ Voir **COMPTE_DEMO.md** (7 agents fictifs, mot de passe `Faso@2026`, codes
+diff --git a/client/api.mjs b/client/api.mjs
+old mode 100644
+new mode 100755
+diff --git a/client/crypto.mjs b/client/crypto.mjs
+old mode 100644
+new mode 100755
+diff --git a/client/i18n.mjs b/client/i18n.mjs
+old mode 100644
+new mode 100755
+diff --git a/client/main.mjs b/client/main.mjs
+old mode 100644
+new mode 100755
+diff --git a/client/ui.mjs b/client/ui.mjs
+old mode 100644
+new mode 100755
+diff --git a/docker-compose.yml b/docker-compose.yml
+old mode 100644
+new mode 100755
+diff --git a/docs/EXPLICATION_CODE.md b/docs/EXPLICATION_CODE.md
+old mode 100644
+new mode 100755
+diff --git a/docs/GUIDE_ENTRETIEN.md b/docs/GUIDE_ENTRETIEN.md
+old mode 100644
+new mode 100755
+diff --git a/docs/NOTE_PREPROJET.md b/docs/NOTE_PREPROJET.md
+old mode 100644
+new mode 100755
+diff --git a/docs/NOTE_SECURITE.md b/docs/NOTE_SECURITE.md
+old mode 100644
+new mode 100755
+diff --git a/docs/Note_de_pre-projet_FasoMsg.pdf b/docs/Note_de_pre-projet_FasoMsg.pdf
+old mode 100644
+new mode 100755
+diff --git a/docs/Note_de_securite_FasoMsg.pdf b/docs/Note_de_securite_FasoMsg.pdf
+old mode 100644
+new mode 100755
+diff --git a/docs/VIDEO_STORYBOARD.md b/docs/VIDEO_STORYBOARD.md
+old mode 100644
+new mode 100755
+diff --git a/package-lock.json b/package-lock.json
+old mode 100644
+new mode 100755
+diff --git a/package.json b/package.json
+old mode 100644
+new mode 100755
+diff --git a/public/index.html b/public/index.html
+old mode 100644
+new mode 100755
+diff --git a/public/style.css b/public/style.css
+old mode 100644
+new mode 100755
+diff --git a/scripts/construire.js b/scripts/construire.js
+old mode 100644
+new mode 100755
+diff --git a/scripts/inspecter_db.js b/scripts/inspecter_db.js
+old mode 100644
+new mode 100755
+diff --git a/scripts/seed.js b/scripts/seed.js
+old mode 100644
+new mode 100755
+index 4aa026e..e3140c0
+--- a/scripts/seed.js
++++ b/scripts/seed.js
+@@ -4,4 +4,9 @@
+ //   npm run seed
+ // ============================================================================
+ 
+-require('../src/seed');
++// require('../src/seed') ne suffit pas : src/seed.js n'appelle semer() que
++// s'il est exécuté directement (require.main === module). On l'appelle ici
++// explicitement pour que `npm run seed` crée réellement les comptes.
++const { semer } = require('../src/seed');
++const resultat = semer();
++console.log(resultat.ok ? resultat.message : `Aucune création : ${resultat.message}`);
+diff --git a/scripts/totp.js b/scripts/totp.js
+old mode 100644
+new mode 100755
+index 0230159..c10d56a
+--- a/scripts/totp.js
++++ b/scripts/totp.js
+@@ -6,12 +6,52 @@
+ //   node scripts/totp.js admin.dgtd
+ //   node scripts/totp.js traore.k
+ //
+-// Les secrets listés ici sont ceux, fixes, des comptes fictifs du fichier
+-// COMPTE_DEMO.md : aucune donnée réelle.
++// Fonctionne SANS `npm install` : il n'utilise que le module standard
++// node:crypto et la liste des comptes (module de données pur
++// src/agents_demo.js). Rôle limité à l'AFFICHAGE d'un code pour les comptes
++// fictifs : la VÉRIFICATION serveur du second facteur reste assurée par la
++// bibliothèque « otpauth » (MIT, RFC 6238) — voir src/auth.js. L'algorithme
++// ici est celui de la RFC 6238 (HMAC-SHA1, 6 chiffres, période 30 s), validé
++// contre otpauth sur les 7 comptes de démonstration.
++//
++// Les secrets listés dans src/agents_demo.js sont ceux, fixes, des comptes
++// fictifs du fichier COMPTE_DEMO.md : aucune donnée réelle.
+ // ============================================================================
+ 
+-const { TOTP, Secret } = require('otpauth');
+-const { AGENTS_DEMO } = require('../src/seed');
++const crypto = require('node:crypto');
++const { AGENTS_DEMO } = require('../src/agents_demo');
++
++// ————— Base32 (RFC 4648, alphabet A-Z et 2-7) → octets —————
++function decodBase32(chaine) {
++  const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
++  let bits = 0;
++  let valeur = 0;
++  const octets = [];
++  for (const c of String(chaine).replace(/=+$/, '').toUpperCase()) {
++    const indice = ALPHABET.indexOf(c);
++    if (indice === -1) continue;
++    valeur = (valeur << 5) | indice;
++    bits += 5;
++    if (bits >= 8) {
++      octets.push((valeur >>> (bits - 8)) & 0xff);
++      bits -= 8;
++    }
++  }
++  return Buffer.from(octets);
++}
++
++// ————— TOTP RFC 6238 : compteur 30 s, HMAC-SHA1, troncature dynamique —————
++function codeTotp(secretBase32, instantMs = Date.now()) {
++  const cle = decodBase32(secretBase32);
++  const compteur = Math.floor(instantMs / 1000 / 30);
++  const tampon = Buffer.alloc(8);
++  tampon.writeBigUInt64BE(BigInt(compteur));
++  const hmac = crypto.createHmac('sha1', cle).update(tampon).digest();
++  const decalage = hmac[hmac.length - 1] & 0xf;
++  const binaire = ((hmac[decalage] & 0x7f) << 24) |
++    (hmac[decalage + 1] << 16) | (hmac[decalage + 2] << 8) | hmac[decalage + 3];
++  return String(binaire % 1e6).padStart(6, '0');
++}
+ 
+ const identifiant = process.argv[2];
+ const agent = AGENTS_DEMO.find((a) => a.identifiant === identifiant);
+@@ -27,11 +67,5 @@ if (!agent) {
+   process.exit(1);
+ }
+ 
+-const totp = new TOTP({
+-  issuer: 'FasoMsg', label: agent.identifiant,
+-  algorithm: 'SHA1', digits: 6, period: 30,
+-  secret: Secret.fromBase32(agent.totp),
+-});
+-
+-console.log(`Code TOTP courant pour ${agent.identifiant} : ${totp.generate()}`);
+-console.log(`(valide environ ${totp.period} secondes)`);
++console.log(`Code TOTP courant pour ${agent.identifiant} : ${codeTotp(agent.totp)}`);
++console.log('(valide environ 30 secondes)');
+diff --git a/src/agents_demo.js b/src/agents_demo.js
+new file mode 100644
+index 0000000..9c43662
+--- /dev/null
++++ b/src/agents_demo.js
+@@ -0,0 +1,25 @@
++// ============================================================================
++// FasoMsg — src/agents_demo.js
++// Données des comptes de DÉMONSTRATION fictifs (cf. COMPTE_DEMO.md).
++// Module de données PUR : aucune importation, aucune dépendance npm, aucune
++// base de données — il peut être chargé par les scripts outils (ex.
++// scripts/totp.js) immédiatement après l'extraction du dépôt.
++//
++// Aucune donnée réelle : conformément à l'appel à projets, seuls des comptes
++// et données fictives sont utilisés. Les secrets TOTP sont fixes afin que le
++// jury puisse générer les codes avec n'importe quelle application TOTP.
++// ============================================================================
++
++const MOT_DE_PASSE_DEMO = 'Faso@2026';
++
++const AGENTS_DEMO = [
++  { identifiant: 'admin.dgtd',  nom_complet: 'DIALLO Fatoumata',      ministere: 'MTDPCE – DGTD',                          fonction: 'Administratrice de la messagerie',        role: 'admin',        totp: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP' },
++  { identifiant: 'sawadogo.m',  nom_complet: 'SAWADOGO Mariam',       ministere: 'Ministère de la Santé',                   fonction: 'Directrice des systèmes d\u2019information', role: 'superviseur', totp: 'MFRGGZDFMZTWQ2LKONXW4ZDFMFRGGZDF' },
++  { identifiant: 'ouedraogo.a', nom_complet: 'OUÉDRAOGO Adama',       ministere: 'MTDPCE – DGTD',                          fonction: 'Chargé de projet numérique',              role: 'agent',        totp: 'NBSWY3DPFQQFO33SM5XCA3DFNBSWY3DP' },
++  { identifiant: 'traore.k',    nom_complet: 'TRAORÉ Korotoum',       ministere: 'Ministère de l\u2019Éducation nationale',  fonction: 'Inspectrice pédagogique',                 role: 'agent',        totp: 'ONSWG43FMZSXIZLOORUWG33SNZZGK3DF' },
++  { identifiant: 'zongo.b',     nom_complet: 'ZONGO Boukary',         ministere: 'Ministère de l\u2019Agriculture',          fonction: 'Ingénieur statisticien',                  role: 'agent',        totp: 'OVQXG5CTM5XCA3LUMVQXG5CTM5XCA3LU' },
++  { identifiant: 'compaore.n',  nom_complet: 'COMPAORÉ Nassara',      ministere: 'Ministère de l\u2019Action sociale',       fonction: 'Assistante sociale',                      role: 'agent',        totp: 'NVSQ2ZLBORUGK3TFMVSQ2ZLBORUGK3TF' },
++  { identifiant: 'kabore.f',    nom_complet: 'KABORÉ Fabrice',        ministere: 'Ministère de l\u2019Économie et des Finances', fonction: 'Contrôleur budgétaire',               role: 'agent',        totp: 'NFXGS3TPO5XCA3LUNFXGS3TPO5XCA3LU' },
++];
++
++module.exports = { AGENTS_DEMO, MOT_DE_PASSE_DEMO };
+diff --git a/src/api.js b/src/api.js
+old mode 100644
+new mode 100755
+index bde0585..083e4c5
+--- a/src/api.js
++++ b/src/api.js
+@@ -489,10 +489,19 @@ routeur.post('/fichiers', auth.authentifie, (req, res) => {
+   if (octets.length === 0 || octets.length > TAILLE_MAX_FICHIER) {
+     return res.status(413).json({ erreur: 'fichier_trop_volumineux' });
+   }
++  // TTL serveur : même validation que pour les messages (horodatage brut,
++  // borné à 30 jours — minimisation, pas de libellé de classification).
++  let expiration = null;
++  if (expire_le) {
++    const t = Date.parse(expire_le);
++    if (Number.isNaN(t)) return res.status(400).json({ erreur: 'expiration_invalide' });
++    const max = Date.now() + 30 * 24 * 3600e3;
++    expiration = new Date(Math.min(t, max)).toISOString();
++  }
+   const id = crypto.randomBytes(12).toString('hex');
+   fs.writeFileSync(path.join(DOSSIER_FICHIERS, `${id}.bin`), octets);
+   db.prepare('INSERT INTO fichiers (id, salon_id, nom_chiffre, taille, empreinte, expire_le) VALUES (?, ?, ?, ?, ?, ?)')
+-    .run(id, Number(salon_id), `${id}.bin`, octets.length, String(empreinte || '').slice(0, 128), expire_le || null);
++    .run(id, Number(salon_id), `${id}.bin`, octets.length, String(empreinte || '').slice(0, 128), expiration);
+   res.status(201).json({ id, taille: octets.length });
+ });
+ 
+diff --git a/src/auth.js b/src/auth.js
+old mode 100644
+new mode 100755
+diff --git a/src/db.js b/src/db.js
+old mode 100644
+new mode 100755
+diff --git a/src/seed.js b/src/seed.js
+old mode 100644
+new mode 100755
+index 0f4426a..12b730f
+--- a/src/seed.js
++++ b/src/seed.js
+@@ -9,17 +9,9 @@
+ const { db, journaliser } = require('./db');
+ const { hacherMotDePasse } = require('./auth');
+ 
+-const MOT_DE_PASSE_DEMO = 'Faso@2026';
+-
+-const AGENTS_DEMO = [
+-  { identifiant: 'admin.dgtd',  nom_complet: 'DIALLO Fatoumata',      ministere: 'MTDPCE – DGTD',                          fonction: 'Administratrice de la messagerie',        role: 'admin',        totp: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP' },
+-  { identifiant: 'sawadogo.m',  nom_complet: 'SAWADOGO Mariam',       ministere: 'Ministère de la Santé',                   fonction: 'Directrice des systèmes d\u2019information', role: 'superviseur', totp: 'MFRGGZDFMZTWQ2LKONXW4ZDFMFRGGZDF' },
+-  { identifiant: 'ouedraogo.a', nom_complet: 'OUÉDRAOGO Adama',       ministere: 'MTDPCE – DGTD',                          fonction: 'Chargé de projet numérique',              role: 'agent',        totp: 'NBSWY3DPFQQFO33SM5XCA3DFNBSWY3DP' },
+-  { identifiant: 'traore.k',    nom_complet: 'TRAORÉ Korotoum',       ministere: 'Ministère de l\u2019Éducation nationale',  fonction: 'Inspectrice pédagogique',                 role: 'agent',        totp: 'ONSWG43FMZSXIZLOORUWG33SNZZGK3DF' },
+-  { identifiant: 'zongo.b',     nom_complet: 'ZONGO Boukary',         ministere: 'Ministère de l\u2019Agriculture',          fonction: 'Ingénieur statisticien',                  role: 'agent',        totp: 'OVQXG5CTM5XCA3LUMVQXG5CTM5XCA3LU' },
+-  { identifiant: 'compaore.n',  nom_complet: 'COMPAORÉ Nassara',      ministere: 'Ministère de l\u2019Action sociale',       fonction: 'Assistante sociale',                      role: 'agent',        totp: 'NVSQ2ZLBORUGK3TFMVSQ2ZLBORUGK3TF' },
+-  { identifiant: 'kabore.f',    nom_complet: 'KABORÉ Fabrice',        ministere: 'Ministère de l\u2019Économie et des Finances', fonction: 'Contrôleur budgétaire',               role: 'agent',        totp: 'NFXGS3TPO5XCA3LUNFXGS3TPO5XCA3LU' },
+-];
++// Données des comptes fictifs : module de données pur (aucune dépendance),
++// partagé avec les scripts outils (ex. scripts/totp.js).
++const { AGENTS_DEMO, MOT_DE_PASSE_DEMO } = require('./agents_demo');
+ 
+ function semer() {
+   const dejaLa = db.prepare('SELECT COUNT(*) AS n FROM agents').get().n;
+diff --git a/src/server.js b/src/server.js
+old mode 100644
+new mode 100755
+index 246ebc2..d897acc
+--- a/src/server.js
++++ b/src/server.js
+@@ -74,6 +74,18 @@ if (process.env.GRAINE_DEMO !== '0') {
+   }
+ }
+ 
++// ————— Garde-fou : bundle client construit ? —————
++// public/app.js et public/olm.wasm sont générés par `npm run build` et ne
++// sont pas versionnés (voir .gitignore). Sans eux, la page resterait vide
++// sans explication : on avertit explicitement plutôt que de laisser une
++// page blanche silencieuse. L'API et les tests restent fonctionnels.
++if (!fs.existsSync(path.join(__dirname, '..', 'public', 'app.js'))) {
++  // eslint-disable-next-line no-console
++  console.warn('[FasoMsg] ATTENTION : public/app.js est absent — la page web sera vide.');
++  // eslint-disable-next-line no-console
++  console.warn('[FasoMsg] Lancez :  npm install && npm run build   (ou utilisez Docker : docker compose up).');
++}
++
+ serveur.listen(PORT, () => {
+   // eslint-disable-next-line no-console
+   console.log(`FasoMsg démarré sur http://localhost:${PORT} — le serveur ne stocke que du chiffré.`);
+diff --git a/src/ws.js b/src/ws.js
+old mode 100644
+new mode 100755
+diff --git a/tests/e2e.test.mjs b/tests/e2e.test.mjs
+old mode 100644
+new mode 100755
+-- 
+2.47.3
+
+
+From 7e4592afd54b5396730e654fe0aa26eddff6d741 Mon Sep 17 00:00:00 2001
+From: Equipe FasoMsg <equipe@fasomsg.example>
+Date: Sun, 1 Nov 2026 19:25:11 +0000
+Subject: [PATCH 2/3] =?UTF-8?q?fix(client):=20rattrapage=20des=20cl=C3=A9s?=
+ =?UTF-8?q?=20de=20salon=20=E2=80=94=20re-partage=20aux=20appareils=20en?=
+ =?UTF-8?q?=20retard,=20demande=20de=20cl=C3=A9=20type=20m.room=5Fkey=5Fre?=
+ =?UTF-8?q?quest,=20cl=C3=A9=20export=C3=A9e=20=C3=A0=20l'index=200,=20ret?=
+ =?UTF-8?q?ente=20l'affichage=20;=20test=20e2e=20n=C2=B011=20reproduisant?=
+ =?UTF-8?q?=20=C2=AB=20cl=C3=A9=20de=20salon=20non=20re=C3=A7ue=20=C2=BB?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ README.md                |   2 +-
+ client/crypto.mjs        |  39 ++++++++-
+ client/main.mjs          | 171 ++++++++++++++++++++++++++++++++-------
+ docs/EXPLICATION_CODE.md |  10 +++
+ tests/e2e.test.mjs       | 134 +++++++++++++++++++++++++++++-
+ 5 files changed, 322 insertions(+), 34 deletions(-)
+
+diff --git a/README.md b/README.md
+index da753fd..c1a5b40 100755
+--- a/README.md
++++ b/README.md
+@@ -78,7 +78,7 @@ Sans Docker :
+ 
+ ```bash
+ npm install && npm run build && npm start    # Node.js >= 22.13 requis
+-npm test                                    # suite e2e (10 tests)
++npm test                                    # suite e2e (11 tests)
+ node scripts/inspecter_db.js "phrase secrète"   # preuve « serveur aveugle »
+ node scripts/totp.js admin.dgtd             # code TOTP (fonctionne même sans npm install)
+ ```
+diff --git a/client/crypto.mjs b/client/crypto.mjs
+index 45cca7a..08bedba 100755
+--- a/client/crypto.mjs
++++ b/client/crypto.mjs
+@@ -259,7 +259,8 @@ export class GestionnaireCrypto {
+     if (this.stockage.getItem(cleStockage)) return true;   // déjà connue
+     try {
+       const session = new Olm.InboundGroupSession();
+-      session.create(sessionKey);
++      try { session.create(sessionKey); }                 // clé initiale (index 0)
++      catch { session.import_session(sessionKey); }        // clé exportée (re-partage)
+       if (session.session_id() !== sessionId) return false;  // incohérence
+       this.stockage.setItem(cleStockage, session.pickle(this.clePickle));
+       return true;
+@@ -282,6 +283,42 @@ export class GestionnaireCrypto {
+       return null;
+     }
+   }
++
++  /**
++   * Exporte, à l'index 0, la clé d'une session de salon connue localement.
++   * Sert au RATTRAPAGE : un appareil qui a manqué le partage initial peut
++   * recevoir cette clé et déchiffrer TOUTE l'historique de la session.
++   * Retourne la clé exportée, ou null si la session est inconnue.
++   */
++  exporterCleSalon(sessionId) {
++    const pickle = this.stockage.getItem(this._cle(`entr:${sessionId}`));
++    if (!pickle) return null;
++    try {
++      const session = new Olm.InboundGroupSession();
++      session.unpickle(this.clePickle, pickle);
++      return session.export_session(0);
++    } catch {
++      return null;
++    }
++  }
++
++  /**
++   * Clé (exportée à l'index 0) de la session SORTANTE d'un salon pour
++   * l'epoch donné, SANS la créer. Retourne {session_id, cle} ou null si
++   * aucune session sortante n'existe encore (aucun message envoyé).
++   */
++  cleSortanteExistante(salonId, epoch) {
++    const pickle = this.stockage.getItem(this._cle(`sort:${salonId}:${epoch}`));
++    if (!pickle) return null;
++    try {
++      const session = new Olm.OutboundGroupSession();
++      session.unpickle(this.clePickle, pickle);
++      const identifiant = session.session_id();
++      return { session_id: identifiant, cle: this.exporterCleSalon(identifiant) };
++    } catch {
++      return null;
++    }
++  }
+ }
+ 
+ /** Échappement HTML — utilisé par l'interface (protection XSS). */
+diff --git a/client/main.mjs b/client/main.mjs
+index 1896dde..2de444b 100755
+--- a/client/main.mjs
++++ b/client/main.mjs
+@@ -35,6 +35,8 @@ const etat = {
+   ws: null,
+   ongletAdmin: 'agents',
+   fichierEnAttente: null, // { nom, mime, taille, octets }
++  partage: {},            // sessionId Megolm -> Set(appareil_id déjà servis)
++  demandes: {},           // sessionId Megolm -> demande de clé déjà envoyée
+ };
+ 
+ const stockageLocal = {
+@@ -200,8 +202,11 @@ async function ouvrirSalon(id) {
+   } catch (e) { return alert(messageErreur(e)); }
+ 
+   await traiterMessagesAppareil();          // récupérer les clés de salon en attente
++  await repartagerCleActive(id, etat.detail.salon.epoch);   // rattrapage des appareils en retard
+   etat.messages[id] = [];
+-  const { messages } = await api.historique(id, etat.vus[id] || 0);
++  // Historique complet à chaque ouverture : les messages restés en échec
++  // (clé reçue entre-temps) sont ainsi retentés et tout le fil réapparaît.
++  const { messages } = await api.historique(id, 0);
+   for (const env of messages) ajouterMessageRendu(id, env);
+   etat.badges[id] = 0;
+   rendreBarreLaterale();
+@@ -235,6 +240,7 @@ async function ajouterMessageRendu(salonId, env) {
+   if (!r) {
+     etat.messages[salonId].push({ echec: true, env });
+     etat.vus[salonId] = env.id;
++    demanderCleManquante(env);              // rattrapage : demande la clé à l'émetteur
+     return;
+   }
+   let contenu;
+@@ -250,6 +256,7 @@ function connecterWebSocket() {
+   const protocole = location.protocol === 'https:' ? 'wss' : 'ws';
+   const ws = new WebSocket(`${protocole}://${location.host}/ws`);
+   etat.ws = ws;
++  ws.onopen = () => { traiterMessagesAppareil().catch(() => {}); };   // clés reçues hors ligne
+   ws.onmessage = (e) => {
+     let msg; try { msg = JSON.parse(e.data); } catch { return; }
+     if (msg.t === 'message') recevoirMessage(msg);
+@@ -316,15 +323,22 @@ async function traiterMessagesAppareil() {
+   if (!r) return;
+   const pourMoi = r.messages.filter((m) => m.appareil_id === etat.appareilId);
+   const ids = [];
++  let clesInstallees = 0;
+   for (const m of pourMoi) {
+     ids.push(m.id);
+     const clair = etat.gc.dechiffrerDepuisAppareil(m.ciphertext);
+     if (!clair) continue;
+     let enveloppe; try { enveloppe = JSON.parse(clair); } catch { continue; }
+-    if (enveloppe.type !== 'cle_sal') continue;
+-    await verifierEtInstallerCle(enveloppe, m.expediteur_id);
++    if (enveloppe.type === 'cle_sal') {
++      if (await verifierEtInstallerCle(enveloppe, m.expediteur_id)) clesInstallees += 1;
++    } else if (enveloppe.type === 'demande_cle') {
++      await repondreDemandeCle(enveloppe, m.expediteur_id);
++    }
+   }
+   if (ids.length) await api.acquitterAppareil(ids).catch(() => {});
++  // Des clés sont arrivées : les messages affichés « indéchiffrables » du
++  // salon actif sont retentés immédiatement (sans rouvrir le salon).
++  if (clesInstallees) retenterMessagesEchoues();
+ }
+ 
+ async function verifierEtInstallerCle(enveloppe, expediteurId) {
+@@ -341,7 +355,7 @@ async function verifierEtInstallerCle(enveloppe, expediteurId) {
+     if (!attendu || attendu.cle_ed25519 !== p.ed25519_emetteur) return;
+   } catch { return; }
+   // 3) Installation de la session entrante Megolm.
+-  etat.gc.ajouterSessionEntrante(p.session_id, p.session_key);
++  return etat.gc.ajouterSessionEntrante(p.session_id, p.session_key);
+ }
+ 
+ // ————— Envoi d'un message —————
+@@ -420,9 +434,11 @@ async function envoyerMessage() {
+     const { session_id, ciphertext, session_key } =
+       etat.gc.chiffrerPourSalon(salonId, epoch, JSON.stringify(contenu));
+ 
+-    // 3. Nouvelle session (création ou rotation) : partager la clé de salon
+-    //    aux autres appareils via Olm, AVANT d'envoyer le message.
+-    if (session_key) await partagerCleSalon(session_id, session_key, epoch);
++    // 3. Partage de la clé de salon via Olm, AVANT d'envoyer le message : à
++    //    la création de la session, puis à CHAQUE envoi pour les appareils
++    //    pas encore couverts (connectés depuis, partage manqué…).
++    const cleAPartager = session_key || etat.gc.exporterCleSalon(session_id);
++    if (cleAPartager) await partagerCleSalon(session_id, cleAPartager, epoch);
+ 
+     // 4. Envoi de l'enveloppe chiffrée au serveur (relais aveugle).
+     const r = await api.envoyerMessage(salonId, session_id, ciphertext, expire_le);
+@@ -436,28 +452,9 @@ async function envoyerMessage() {
+   }
+ }
+ 
+-/** Partage la clé Megolm d'un salon à tous les appareils des membres. */
+-async function partagerCleSalon(sessionId, sessionKey, epoch) {
+-  const identite = etat.gc.identite();
+-  const payload = {
+-    type: 'cle_sal', salon_id: etat.salonActifId, epoch, session_id: sessionId,
+-    session_key: sessionKey, ed25519_emetteur: identite.ed25519,
+-    appareil_emetteur: etat.appareilId, agent_emetteur: etat.agent.id,
+-  };
+-  const aSigner = JSON.stringify(payload);
+-  const signature = etat.gc.signer(aSigner);
+-  const enveloppe = JSON.stringify({ payload, signature });
+-
+-  // Tous les appareils des membres, y compris MES autres appareils,
+-  // sauf l'appareil courant (il installe sa clé localement).
+-  const cibles = [];
+-  for (const m of etat.detail.membres) {
+-    for (const ap of m.appareils) {
+-      if (ap.id === etat.appareilId) continue;
+-      cibles.push({ membre: m, appareil: ap });
+-    }
+-  }
+-
++/** Chiffre une enveloppe Olm pour des appareils cibles (session existante ou
++ *  clé jetable réclamée) et l'expédie. Retourne les identifiants servis. */
++async function envoyerEnveloppeOlm(cibles, enveloppe) {
+   const destinataires = [];
+   const aReclamer = [];
+   for (const c of cibles) {
+@@ -466,7 +463,7 @@ async function partagerCleSalon(sessionId, sessionKey, epoch) {
+     else aReclamer.push(c);
+   }
+   if (aReclamer.length) {
+-    const { cles } = await api.reclamerCles(aReclamer.map((c) => ({ agent_id: c.membre.id, appareil_id: c.appareil.id })));
++    const { cles } = await api.reclamerCles(aReclamer.map((c) => ({ appareil_id: c.appareil.id })));
+     for (const c of aReclamer) {
+       const cj = cles[c.appareil.id];
+       if (!cj) continue;                       // appareil hors ligne sans clé : il rattrapera
+@@ -476,6 +473,120 @@ async function partagerCleSalon(sessionId, sessionKey, epoch) {
+   }
+   if (destinataires.length) await api.envoyerAuxAppareils(destinataires);
+   await completerClesJetables(Math.min(5, cibles.length));   // reconstitution du stock
++  return destinataires.map((d) => d.appareil_id);
++}
++
++/**
++ * Partage la clé Megolm d'un salon (clé exportée à l'index 0 : le
++ * destinataire déchiffrera TOUTE l'historique de la session). Par défaut, aux
++ * appareils des membres pas encore couverts pour cette session ; ou aux
++ * `cibles` explicites (réponse à une demande de clé).
++ */
++async function partagerCleSalon(sessionId, sessionKey, epoch, cibles = null, salonId = null) {
++  const couverts = (etat.partage[sessionId] ||= new Set([etat.appareilId]));
++  if (!cibles) {
++    cibles = [];
++    for (const m of etat.detail.membres) {
++      for (const ap of m.appareils) {
++        if (ap.id !== etat.appareilId && !couverts.has(ap.id)) cibles.push({ membre: m, appareil: ap });
++      }
++    }
++  }
++  if (!cibles.length) return;
++  const identite = etat.gc.identite();
++  const payload = {
++    type: 'cle_sal', salon_id: salonId || etat.salonActifId, epoch, session_id: sessionId,
++    session_key: sessionKey, ed25519_emetteur: identite.ed25519,
++    appareil_emetteur: etat.appareilId, agent_emetteur: etat.agent.id,
++  };
++  const enveloppe = JSON.stringify({ payload, signature: etat.gc.signer(JSON.stringify(payload)) });
++  const servis = await envoyerEnveloppeOlm(cibles, enveloppe);
++  for (const id of servis) couverts.add(id);
++}
++
++/** À l'ouverture d'un salon : re-partage la clé de la session sortante en
++ *  cours (si elle existe) aux appareils qui l'ont manquée (hors ligne à la
++ *  création, arrivés après, partage initialement échoué). */
++async function repartagerCleActive(salonId, epoch) {
++  try {
++    const c = etat.gc.cleSortanteExistante(salonId, epoch);
++    if (c && c.cle) await partagerCleSalon(c.session_id, c.cle, epoch);
++  } catch { /* le rattrapage se retentera à la prochaine ouverture */ }
++}
++
++/**
++ * Clé manquante : demande la session à l'appareil émetteur du message
++ * (mécanisme type « m.room_key_request » du protocole Matrix, transporté Olm
++ * comme les clés de salon). La file to-device du serveur conserve la demande
++ * même si l'émetteur est hors ligne ; il y répondra à son retour.
++ */
++async function demanderCleManquante(env) {
++  try {
++    if (!env?.session_id || etat.demandes[env.session_id]) return;   // déjà demandée
++    etat.demandes[env.session_id] = true;
++    if (!etat.detail) return;
++    const membre = etat.detail.membres.find((m) => m.id === env.expediteur_id);
++    if (!membre) return;                    // émetteur parti du salon : pas de demande
++    const identite = etat.gc.identite();
++    const payload = {
++      type: 'demande_cle', salon_id: etat.salonActifId, session_id: env.session_id,
++      agent_demandeur: etat.agent.id, appareil_demandeur: etat.appareilId,
++      ed25519_emetteur: identite.ed25519, appareil_emetteur: etat.appareilId,
++    };
++    const enveloppe = JSON.stringify({ payload, signature: etat.gc.signer(JSON.stringify(payload)) });
++    const cibles = membre.appareils
++      .filter((ap) => ap.id !== etat.appareilId)
++      .map((ap) => ({ membre, appareil: ap }));
++    if (cibles.length) await envoyerEnveloppeOlm(cibles, enveloppe);
++  } catch { /* le rattrapage se retentera à la prochaine ouverture/erreur */ }
++}
++
++/** Répond à une demande de clé : re-partage la session demandée (si nous la
++ *  détenons) à tous les appareils du demandeur, après vérifications. */
++async function repondreDemandeCle(enveloppe, expediteurId) {
++  try {
++    const p = enveloppe.payload;
++    if (!p || !enveloppe.signature) return;
++    // 1) Signature ed25519 du demandeur…
++    if (!etat.gc.verifierSignature(p.ed25519_emetteur, JSON.stringify(p), enveloppe.signature)) return;
++    // 2) … rattachée à un appareil déclaré de l'agent demandeur.
++    try {
++      const { appareils } = await api.clesPubliques([p.appareil_emetteur]);
++      const attendu = appareils.find((a) => a.agent_id === expediteurId);
++      if (!attendu || attendu.cle_ed25519 !== p.ed25519_emetteur) return;
++    } catch { return; }
++    // 3) Nous devons détenir la session demandée…
++    const cle = etat.gc.exporterCleSalon(p.session_id);
++    if (!cle) return;
++    // 4) … et le demandeur doit être membre du salon concerné.
++    const d = await api.salon(p.salon_id).catch(() => null);
++    if (!d) return;
++    const membre = d.membres.find((m) => m.id === expediteurId);
++    if (!membre) return;
++    const cibles = membre.appareils
++      .filter((ap) => ap.id !== etat.appareilId)
++      .map((ap) => ({ membre, appareil: ap }));
++    await partagerCleSalon(p.session_id, cle, d.salon.epoch, cibles, p.salon_id);
++  } catch { /* non bloquant */ }
++}
++
++/** Des clés viennent d'arriver : retente le déchiffrement des messages en
++ *  échec du salon actif et rafraîchit l'affichage. */
++function retenterMessagesEchoues() {
++  const salonId = etat.salonActifId;
++  if (!salonId || !etat.messages[salonId]) return;
++  let change = false;
++  etat.messages[salonId] = etat.messages[salonId].map((entree) => {
++    if (!entree.echec) return entree;
++    const r = etat.gc.dechiffrerSalon(entree.env.session_id, entree.env.ciphertext);
++    if (!r) return entree;
++    change = true;
++    let contenu; try { contenu = JSON.parse(r.plaintext); } catch { contenu = { type: 'texte', texte: '' }; }
++    const expediteur = etat.detail?.membres.find((m) => m.id === entree.env.expediteur_id)
++      || { nom_complet: '—' };
++    return { env: entree.env, contenu, expediteur };
++  });
++  if (change) { rendreSalon(); defilerFil(); }
+ }
+ 
+ function octetsVersBase64(octets) {
+diff --git a/docs/EXPLICATION_CODE.md b/docs/EXPLICATION_CODE.md
+index 7feea3a..e71bef6 100755
+--- a/docs/EXPLICATION_CODE.md
++++ b/docs/EXPLICATION_CODE.md
+@@ -65,6 +65,16 @@ Côté destinataire (`verifierEtInstallerCle`) — **double vérification** :
+ 2. la clé ed25519 annoncée existe réellement dans l'annuaire serveur comme
+    appareil de l'émetteur → pas d'usurpation d'identité.
+ 
++**Rattrapage des clés (appareil en retard)** : la clé est partagée à la
++CRÉATION de la session, puis re-partagée à chaque envoi et à l'ouverture du
++salon aux appareils pas encore couverts (`exporterCleSalon` : clé exportée
++à l'index 0 → le destinataire déchiffre toute l'historique, via
++`import_session`). Si un message reste indéchiffrable, le client envoie une
++`demande_cle` Olm-signée à l'émetteur (type `m.room_key_request` de Matrix) ;
++l'émetteur répond par un partage classique après vérification signature +
++annuaire + appartenance au salon. Un agent révoqué, retiré des salons, ne
++peut ni demander ni recevoir de clé.
++
+ ## 3. src/auth.js — authentification forte
+ 
+ ### ★ `hacherMotDePasse` / `verifierMotDePasse` — scrypt
+diff --git a/tests/e2e.test.mjs b/tests/e2e.test.mjs
+index f96f2d1..2211ddc 100755
+--- a/tests/e2e.test.mjs
++++ b/tests/e2e.test.mjs
+@@ -74,7 +74,7 @@ class AgentFictif {
+     return r.donnees.agent;
+   }
+ 
+-  async preparerAppareil() {
++  async preparerAppareil(sansClesJetables = false) {
+     const stockage = new Map();
+     const cle = await deriverClePickle('cle-test-' + this.identifiant, 'sel-test');
+     this.gc = new GestionnaireCrypto(
+@@ -88,6 +88,7 @@ class AgentFictif {
+     });
+     assert.ok(r.statut === 200 || r.statut === 201, `enregistrement appareil de ${this.identifiant}`);
+     this.appareilId = r.donnees.appareil_id;
++    if (sansClesJetables) return identite;   // appareil déclaré mais non initialisé
+     this.gc.genererClesJetables(25);
+     const cles = this.gc.clesJetablesAPublier();
+     await requete('/api/keys/upload', { method: 'POST', cookie: this.cookie, corps: { appareil_id: this.appareilId, cles } });
+@@ -144,7 +145,14 @@ class AgentFictif {
+     const { session_id, ciphertext, session_key } =
+       this.gc.chiffrerPourSalon(salonId, epoch, JSON.stringify(charge));
+ 
+-    if (session_key) await this.partagerCleSalon(salonId, epoch, session_id, session_key, membres);
++    if (session_key) {
++      await this.partagerCleSalon(salonId, epoch, session_id, session_key, membres);
++    } else {
++      // Session existante : re-partage de la clé exportée à l'index 0 aux
++      // appareils pas encore couverts (logique du client corrigé).
++      const existante = this.gc.cleSortanteExistante(salonId, epoch);
++      if (existante?.cle) await this.partagerCleSalon(salonId, epoch, existante.session_id, existante.cle, membres);
++    }
+ 
+     const r = await requete(`/api/salons/${salonId}/messages`, {
+       method: 'POST', cookie: this.cookie,
+@@ -164,6 +172,10 @@ class AgentFictif {
+       const clair = this.gc.dechiffrerDepuisAppareil(m.ciphertext);
+       if (!clair) continue;
+       const enveloppe = JSON.parse(clair);
++      if (enveloppe?.payload?.type === 'demande_cle') {
++        await this.repondreDemandeCle(enveloppe, m.expediteur_id);
++        continue;
++      }
+       if (enveloppe?.payload?.type !== 'cle_sal') continue;
+       const p = enveloppe.payload;
+       // Vérification : signature ed25519 + appartenance de la clé à un
+@@ -178,6 +190,60 @@ class AgentFictif {
+     if (ids.length) await requete('/api/toDevice/ack', { method: 'POST', cookie: this.cookie, corps: { ids } });
+   }
+ 
++  /** Répond à une demande de clé : re-partage la session demandée (miroir client). */
++  async repondreDemandeCle(enveloppe, expediteurId) {
++    const p = enveloppe.payload;
++    if (!this.gc.verifierSignature(p.ed25519_emetteur, JSON.stringify(p), enveloppe.signature)) return;
++    const rq = await requete(`/api/keys/query?appareils=${p.appareil_emetteur}`, { cookie: this.cookie });
++    const attendu = rq.donnees.appareils.find((a) => a.agent_id === expediteurId);
++    if (!attendu || attendu.cle_ed25519 !== p.ed25519_emetteur) return;
++    const cle = this.gc.exporterCleSalon(p.session_id);
++    if (!cle) return;                                   // nous ne détenons pas cette clé
++    const rDetail = await requete(`/api/salons/${p.salon_id}`, { cookie: this.cookie });
++    if (rDetail.statut !== 200) return;
++    const membre = rDetail.donnees.membres.find((m) => m.id === expediteurId);
++    if (!membre) return;                                // le demandeur n'est pas membre
++    await this.partagerCleSalon(p.salon_id, rDetail.donnees.salon.epoch, p.session_id, cle, [membre]);
++  }
++
++  /** Demande la clé d'une session manquante à l'émetteur (miroir client). */
++  async demanderCleManquante(salonId, env) {
++    const rDetail = await requete(`/api/salons/${salonId}`, { cookie: this.cookie });
++    assert.equal(rDetail.statut, 200);
++    const membre = rDetail.donnees.membres.find((m) => m.id === env.expediteur_id);
++    assert.ok(membre, 'émetteur membre du salon');
++    const identite = this.gc.identite();
++    const charge = {
++      type: 'demande_cle', salon_id: salonId, session_id: env.session_id,
++      agent_demandeur: this.moi.id, appareil_demandeur: this.appareilId,
++      ed25519_emetteur: identite.ed25519, appareil_emetteur: this.appareilId,
++    };
++    const enveloppe = JSON.stringify({ payload: charge, signature: this.gc.signer(JSON.stringify(charge)) });
++    const destinataires = [];
++    const aReclamer = [];
++    for (const ap of membre.appareils) {
++      if (ap.id === this.appareilId) continue;
++      const ct = this.gc.chiffrerPourAppareil(ap, null, enveloppe);
++      if (ct) destinataires.push({ appareil_id: ap.id, ciphertext: ct });
++      else aReclamer.push({ membre, appareil: ap });
++    }
++    if (aReclamer.length) {
++      const rc = await requete('/api/keys/claim', {
++        method: 'POST', cookie: this.cookie,
++        corps: { cibles: aReclamer.map((c) => ({ appareil_id: c.appareil.id })) },
++      });
++      for (const c of aReclamer) {
++        const cj = rc.donnees.cles[c.appareil.id];
++        if (!cj) continue;
++        const ct = this.gc.chiffrerPourAppareil(c.appareil, cj.cle, enveloppe);
++        if (ct) destinataires.push({ appareil_id: c.appareil.id, ciphertext: ct });
++      }
++    }
++    assert.ok(destinataires.length, 'demande de clé transmise à au moins un appareil');
++    const r = await requete('/api/sendToDevice', { method: 'POST', cookie: this.cookie, corps: { destinataires } });
++    assert.equal(r.statut, 200);
++  }
++
+   /** Retourne tous les messages déchiffrables d'un salon. */
+   async lireMessages(salonId) {
+     await this.synchroniser();
+@@ -468,3 +534,67 @@ test('Expiration : le serveur supprime le message arrivé à échéance', async
+   const restants = rListe.donnees.messages.filter((m) => m.expire_le === expireLe);
+   assert.equal(restants.length, 0, 'le message expiré doit être supprimé côté serveur');
+ });
++
++// ===========================================================================
++// 8) RATTRAPAGE DES CLÉS (reproduction du défaut « clé de salon non reçue »)
++//    Un appareil connecté plus tard, ou dont les clés jetables n'étaient pas
++//    encore publiées au moment du partage, ne doit pas rester bloqué :
++//    demande de clé à l'émetteur (type m.room_key_request), réponse avec la
++//    clé EXPORTÉE à l'index 0, déchiffrement de TOUTE l'historique.
++// ===========================================================================
++test('Rattrapage des clés : un appareil en retard déchiffre l\'historique après demande', async () => {
++  const alice = new AgentFictif('zongo.b', AGENTS_DEMO.find((a) => a.identifiant === 'zongo.b').totp);
++  alice.moi = await alice.connecter();
++  await alice.preparerAppareil();
++
++  const bob = new AgentFictif('kabore.f', AGENTS_DEMO.find((a) => a.identifiant === 'kabore.f').totp);
++  bob.moi = await bob.connecter();
++  // Appareil DÉCLARÉ mais sans clés jetables publiées : exactement l'état
++  // d'un navigateur à moitié initialisé (ou connecté après l'envoi).
++  await bob.preparerAppareil(true);
++
++  const rDirect = await requete('/api/direct', {
++    method: 'POST', cookie: alice.cookie, corps: { avec: 'kabore.f' },
++  });
++  assert.ok([200, 201].includes(rDirect.statut), 'conversation directe');
++  const salon = rDirect.donnees.salon_id;
++
++  // Alice crée la session Megolm et envoie : son partage vers l'appareil de
++  // Bob échoue silencieusement (aucune clé jetable à réclamer).
++  const idMsg = await alice.envoyerMessage(salon, 'rattrapage-salut-7f3a');
++  assert.ok(idMsg, 'message envoyé sans que la clé ait pu être partagée');
++
++  // Bob, côté client : le message reste indéchiffrable — état de la capture.
++  await bob.synchroniser();
++  const avant = await bob.lireMessages(salon);
++  const bloque = avant.find((m) => m.env.id === idMsg);
++  assert.ok(bloque && bloque.clair === null, 'sans rattrapage, le message est « clé de salon non reçue »');
++
++  // ——— Rattrapage (nouvelle logique du client) ———
++  // 1. Bob termine son initialisation : ses clés jetables sont publiées.
++  bob.gc.genererClesJetables(10);
++  await requete('/api/keys/upload', {
++    method: 'POST', cookie: bob.cookie,
++    corps: { appareil_id: bob.appareilId, cles: bob.gc.clesJetablesAPublier() },
++  });
++
++  // 2. Bob demande la clé manquante à l'émetteur du message (demande_cle).
++  await bob.demanderCleManquante(salon, bloque.env);
++
++  // 3. Alice traite la demande et re-partage la clé exportée (index 0).
++  await alice.synchroniser();
++
++  // 4. Bob reçoit la clé, l'importe (format exporté) et déchiffre TOUT :
++  //    y compris le message envoyé AVANT le rattrapage.
++  await bob.synchroniser();
++  const apres = await bob.lireMessages(salon);
++  assert.ok(apres.some((m) => m.clair?.texte === 'rattrapage-salut-7f3a'),
++    'le message envoyé avant le rattrapage est déchiffré après installation de la clé');
++
++  // 5. Le re-partage à chaque envoi couvre aussi les messages suivants.
++  await alice.envoyerMessage(salon, 'rattrapage-cc-9d2b');
++  await bob.synchroniser();
++  const fin = await bob.lireMessages(salon);
++  assert.ok(fin.some((m) => m.clair?.texte === 'rattrapage-cc-9d2b'),
++    'les messages suivants arrivent avec leur clé de session');
++});
+-- 
+2.47.3
+
+
+From 374cc82dc271a8c602a81dc0a4da331fb826e4e5 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=C3=89quipe=20FasoMsg?= <equipe.fasomsg@exemple.bf>
+Date: Sun, 1 Nov 2026 20:15:57 +0000
+Subject: [PATCH 3/3] =?UTF-8?q?fix(client):=20CSP=20=E2=80=94=20suppressio?=
+ =?UTF-8?q?n=20des=20attributs=20style=20inline=20(style-src-attr),=20clas?=
+ =?UTF-8?q?se=20.masque=20=C3=A0=20la=20place?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ client/ui.mjs    | 4 ++--
+ public/style.css | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/client/ui.mjs b/client/ui.mjs
+index cacf72a..25b68b6 100755
+--- a/client/ui.mjs
++++ b/client/ui.mjs
+@@ -179,7 +179,7 @@ function compositeurMessage(salon) {
+       <option value="restreint">${esc(t('classification_restreint'))}</option>
+       <option value="confidentiel">${esc(t('classification_confidentiel'))}</option>
+     </select>
+-    <select id="expiration" style="display:none" title="${esc(t('expiration'))}">
++    <select id="expiration" class="masque" title="${esc(t('expiration'))}">
+       <option value="60">${esc(t('expiration_1h'))}</option>
+       <option value="1440">${esc(t('expiration_24h'))}</option>
+       <option value="10080">${esc(t('expiration_7j'))}</option>
+@@ -190,7 +190,7 @@ function compositeurMessage(salon) {
+       <label class="bouton-fichier" title="${esc(t('fichier'))}">+
+         <input type="file" id="fichier-a-envoyer" hidden>
+       </label>
+-      <div class="fichier-attente" id="fichier-attente" style="display:none">
++      <div class="fichier-attente masque" id="fichier-attente">
+         <span id="nom-fichier-attente"></span>
+         <button type="button" class="mini" data-action="annuler-fichier">×</button>
+       </div>
+diff --git a/public/style.css b/public/style.css
+index eca91a5..287f9a0 100755
+--- a/public/style.css
++++ b/public/style.css
+@@ -190,6 +190,7 @@ input, select, textarea { font: inherit; color: inherit; }
+   border: 1px solid var(--bord); border-radius: 10px; width: 40px; height: 40px;
+   display: grid; place-items: center; font-size: 20px; color: var(--vert); cursor: pointer;
+ }
++.masque { display: none; }
+ .fichier-attente {
+   display: flex; align-items: center; gap: 8px; background: var(--vert-clair);
+   border-radius: 8px; padding: 6px 10px; font-size: 13px;
+-- 
+2.47.3

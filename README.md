@@ -78,7 +78,7 @@ Sans Docker :
 
 ```bash
 npm install && npm run build && npm start    # Node.js >= 22.13 requis
-npm test                                    # suite e2e (10 tests)
+npm test                                    # suite e2e (11 tests)
 node scripts/inspecter_db.js "phrase secrète"   # preuve « serveur aveugle »
 ```
 

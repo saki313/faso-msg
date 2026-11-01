@@ -259,7 +259,11 @@ export class GestionnaireCrypto {
     if (this.stockage.getItem(cleStockage)) return true;   // déjà connue
     try {
       const session = new Olm.InboundGroupSession();
-      session.create(sessionKey);
+      try { 
+        session.create(sessionKey); 
+      } catch {
+        session.import_session(sessionKey);
+      }
       if (session.session_id() !== sessionId) return false;  // incohérence
       this.stockage.setItem(cleStockage, session.pickle(this.clePickle));
       return true;
@@ -278,6 +282,42 @@ export class GestionnaireCrypto {
       const r = session.decrypt(ciphertext);
       this.stockage.setItem(this._cle(`entr:${sessionId}`), session.pickle(this.clePickle));
       return r;
+    } catch {
+      return null;
+    }
+  }
+
+    /**
+   * Exporte, à l'index 0, la clé d'une session de salon connue localement.
+   * Sert au RATTRAPAGE : un appareil qui a manqué le partage initial peut
+   * recevoir cette clé et déchiffrer TOUTE l'historique de la session.
+   * Retourne la clé exportée, ou null si la session est inconnue.
+   */
+  exporterCleSalon(sessionId) {
+    const pickle = this.stockage.getItem(this._cle(`entr:${sessionId}`));
+    if (!pickle) return null;
+    try {
+      const session = new Olm.InboundGroupSession();
+      session.unpickle(this.clePickle, pickle);
+      return session.export_session(0);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Clé (exportée à l'index 0) de la session SORTANTE d'un salon pour
+   * l'epoch donné, SANS la créer. Retourne {session_id, cle} ou null si
+   * aucune session sortante n'existe encore (aucun message envoyé).
+   */
+  cleSortanteExistante(salonId, epoch) {
+    const pickle = this.stockage.getItem(this._cle(`sort:${salonId}:${epoch}`));
+    if (!pickle) return null;
+    try {
+      const session = new Olm.OutboundGroupSession();
+      session.unpickle(this.clePickle, pickle);
+      const identifiant = session.session_id();
+      return { session_id: identifiant, cle: this.exporterCleSalon(identifiant) };
     } catch {
       return null;
     }
