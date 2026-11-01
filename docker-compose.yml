@@ -1,0 +1,28 @@
+# =============================================================================
+# FasoMsg — docker-compose.yml
+# DÉPLOIEMENT EN UNE COMMANDE (exigence du socle de sécurité) :
+#
+#     docker compose up
+#
+# puis ouvrir http://localhost:3000 — comptes de démonstration : COMPTE_DEMO.md
+#
+# Tout fonctionne sur l'infrastructure hôte : aucun service tiers, aucune
+# dépendance externe (base, fichiers, WebSocket et client inclus).
+# =============================================================================
+services:
+  fasomsg:
+    build: .
+    container_name: fasomsg
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # GRAINE_DEMO=1 crée au premier démarrage les comptes fictifs de
+      # démonstration (voir COMPTE_DEMO.md). Mettre 0 pour un déploiement
+      # réel : l'administrateur est alors enrôlé via la ligne de commande.
+      GRAINE_DEMO: "1"
+    volumes:
+      - faso_data:/app/data
+
+volumes:
+  faso_data:
