@@ -4,3 +4,4 @@ public/app.js
 public/olm.wasm
 *.log
 .DS_Store
+data/test-e2e.db*

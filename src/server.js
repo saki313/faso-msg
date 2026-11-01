@@ -46,6 +46,8 @@ ws.init(serveur);
 //    suppression serveur dès que l'horodatage d'expiration est dépassé.
 // 2. Fichiers chiffrés expirés : blob + ligne supprimés.
 // 3. Sessions expirées.
+// (FASOMSG_NETTOYAGE_MS permet aux tests automatisés d'accélérer le cycle.)
+const INTERVALLE_NETTOYAGE = Number(process.env.FASOMSG_NETTOYAGE_MS || 60000);
 function nettoyer() {
   const maintenant = new Date().toISOString();
   db.prepare("DELETE FROM messages WHERE expire_le IS NOT NULL AND expire_le < ?").run(maintenant);
@@ -56,7 +58,7 @@ function nettoyer() {
   }
   db.prepare('DELETE FROM sessions WHERE expire_le < ?').run(maintenant);
 }
-setInterval(nettoyer, 60 * 1000);
+setInterval(nettoyer, INTERVALLE_NETTOYAGE);
 nettoyer();
 
 // ————— Données de démonstration (optionnel) —————

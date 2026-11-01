@@ -4,8 +4,8 @@
 // injections XSS). Aucun framework : chaque ligne reste explicable au jury.
 // ============================================================================
 
-import { t, salutation, getLangue } from './i18n.js';
-import { esc } from './crypto.js';
+import { t, salutation, getLangue } from './i18n.mjs';
+import { esc } from './crypto.mjs';
 
 export function pageConnexion({ mode = 'connexion', info = null, qr = null, secret = null, identifiant = '' }) {
   const champsConnexion = `

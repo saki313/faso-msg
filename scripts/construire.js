@@ -13,7 +13,7 @@ const racine = path.join(__dirname, '..');
 
 (async () => {
   await esbuild.build({
-    entryPoints: [path.join(racine, 'client', 'main.js')],
+    entryPoints: [path.join(racine, 'client', 'main.mjs')],
     bundle: true,
     format: 'iife',
     platform: 'browser',

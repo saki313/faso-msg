@@ -16,10 +16,10 @@
 import {
   initOlm, GestionnaireCrypto, deriverClePickle,
   chiffrerFichier, dechiffrerFichier, cleAleatoire, esc,
-} from './crypto.js';
-import * as api from './api.js';
-import { t, setLangue, getLangue } from './i18n.js';
-import * as ui from './ui.js';
+} from './crypto.mjs';
+import * as api from './api.mjs';
+import { t, setLangue, getLangue } from './i18n.mjs';
+import * as ui from './ui.mjs';
 
 const etat = {
   agent: null,            // agent connecté
